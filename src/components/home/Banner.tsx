@@ -186,7 +186,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-navy-deep shadow-lg shadow-black/20 transition-colors hover:bg-brand-yellow-hover"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
             >
               Find your trip
             </motion.button>
