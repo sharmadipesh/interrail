@@ -23,7 +23,7 @@ export default function SmoothScroll({
     if (prefersReduced) return;
 
     const lenis = new Lenis({
-      duration: 1.15,
+      duration: 0.9,
       // easeOutExpo — smooth, premium deceleration.
       easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
       smoothWheel: true,
