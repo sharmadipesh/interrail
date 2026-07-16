@@ -54,12 +54,12 @@ export default function Banner() {
       </motion.div>
 
       {/* Legibility gradients — darker at the left/bottom where the copy sits */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/50" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-transparent" />
+      {/* <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-transparent" /> */}
 
       {/* Content */}
       <div className="relative z-10 flex h-full flex-col">
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pb-12 pt-24 sm:px-10 sm:pb-16 lg:px-16">
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pb-14 pt-24 sm:px-10 sm:pb-16 lg:px-16">
           {/* Headline + subheading, vertically centered in the remaining space */}
           <div className="flex flex-1 flex-col justify-center">
             {/* Headline */}
@@ -67,7 +67,7 @@ export default function Banner() {
               variants={container}
               initial="hidden"
               animate="show"
-              className="text-6xl font-black uppercase leading-[0.86] tracking-tight text-white sm:text-7xl lg:text-8xl"
+              className="font-molitor text-hero uppercase leading-hero tracking-hero font-bold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
             >
               {HEADLINE.map((word, i) => (
                 <span key={word} className="block overflow-hidden">
@@ -87,7 +87,7 @@ export default function Banner() {
                           duration: 0.6,
                           ease: EASE_OUT,
                         }}
-                        className="relative ml-4 inline-block h-11 w-11 shrink-0 align-middle sm:ml-6 sm:h-16 sm:w-16"
+                        className="relative ml-4 inline-block h-6 w-6 shrink-0 align-middle mt-8"
                       >
                         {/* Static disc + center dot */}
                         <svg viewBox="0 0 100 100" className="h-full w-full">
@@ -121,7 +121,12 @@ export default function Banner() {
                             r="44"
                             fill="url(#discShade)"
                           />
-                          <circle cx="50" cy="50" r="17" fill="#FBC626" />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="17"
+                            className="fill-brand-yellow"
+                          />
                         </svg>
 
                         {/* Sweeping arc, layered on top and rotating */}
@@ -140,10 +145,10 @@ export default function Banner() {
                             cy="50"
                             r="44"
                             fill="none"
-                            stroke="#FBC626"
                             strokeWidth="7"
                             strokeLinecap="round"
                             strokeDasharray="118 159"
+                            className="stroke-brand-yellow"
                           />
                         </motion.svg>
                       </motion.span>
@@ -159,7 +164,7 @@ export default function Banner() {
               initial="hidden"
               animate="show"
               transition={{ delay: 1.05, duration: 0.7, ease: EASE_OUT }}
-              className="mt-7 max-w-md text-lg font-medium leading-snug text-white/90 sm:text-xl"
+              className="mt-6 max-w-md font-molitor text-lead font-normal leading-lead tracking-lead text-white"
             >
               The deeper you go into Europe.
               <br />
@@ -179,7 +184,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap rounded-[3px] bg-[#FBC626] px-6 py-4 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-black/20 transition-colors hover:bg-[#f2c65f]"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-lead text-navy-deep shadow-lg shadow-black/20 transition-colors hover:bg-brand-yellow-hover"
             >
               Find your trip
             </motion.button>
@@ -188,7 +193,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap rounded-[3px] border border-[#FBC626] bg-transparent px-6 py-4 text-xs font-bold uppercase tracking-widest text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 py-3 text-xs font-semibold uppercase tracking-lead text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
             >
               I know my trip
             </motion.button>

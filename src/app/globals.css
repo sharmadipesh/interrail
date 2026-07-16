@@ -25,6 +25,38 @@
   font-display: swap;
 }
 
+/* Molitor Display — display face for headlines (light + regular + bold). */
+@font-face {
+  font-family: "Molitor";
+  src: url("/fonts/Molitortrial-DisplayLight.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Molitor";
+  src: url("/fonts/Molitortrial-DisplayRegular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Molitor";
+  src: url("/fonts/Molitortrial-DisplayBold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Departure Mono — pixel/monospace face for accents (e.g. "SINCE 1972"). */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/fonts/DepartureMono-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
