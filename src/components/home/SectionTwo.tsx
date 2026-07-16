@@ -72,10 +72,10 @@ export default function SectionTwo() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.4 }}
-          className="text-center font-molitor text-hero font-bold uppercase leading-[43px] tracking-27px text-navy-deep"
+          className="text-center font-molitor text-hero font-bold leading-[54px] tracking-27px text-navy-deep"
         >
           {HEADING.map((line) => (
-            <span key={line} className="block overflow-hidden pb-[2px]">
+            <span key={line} className="-mb-[11px] block overflow-hidden">
               <motion.span variants={rise} className="block">
                 {line}
               </motion.span>

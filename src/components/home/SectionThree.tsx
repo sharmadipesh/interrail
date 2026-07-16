@@ -1,0 +1,191 @@
+"use client";
+
+import Image from "next/image";
+import { motion, type Variants } from "framer-motion";
+import { LuBookmark } from "react-icons/lu";
+
+// Premium ease-out — smooth, no bounce.
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const HEADING = ["Where next?", "destinations", "your europe."];
+const SUBTEXT = [
+  "At vero eos et accusamus et",
+  "iusto iusto odio dignissimos",
+  "ducimus qui blanditiis.",
+];
+
+const DATA = [
+  {
+    src: "section-3.1.png",
+    routes: ["Berlin", "Prague", "Vienna"],
+    heading:
+      "Berlin to Budapest along the old central line. Big stations, dinners in alleys, a different language every couple of days.",
+  },
+  {
+    src: "section-3.3.png",
+    routes: ["Milan", "Venice", "Florence"],
+    heading:
+      "Milan down to Rome with Venice and Florence on the way. Design, renaissance, canals and history. Italy at its most iconic.",
+  },
+  {
+    src: "section-3.2.png",
+    routes: ["Paris", "Strasbourg", "Lyon"],
+    heading:
+      "Get lost in France the french way. The one everybody means when they say interrail.",
+  },
+];
+
+// Parent that staggers its children into view.
+const stagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+};
+
+// Line rises out of an overflow-hidden mask.
+const rise: Variants = {
+  hidden: { y: "115%" },
+  show: { y: "0%", transition: { duration: 0.9, ease: EASE } },
+};
+
+// Soft blur-fade up.
+const blurUp: Variants = {
+  hidden: { opacity: 0, y: 18, filter: "blur(8px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.7, ease: EASE },
+  },
+};
+
+// Card lifts + fades in, then staggers its own content.
+const card: Variants = {
+  hidden: { opacity: 0, y: 60 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.9,
+      ease: EASE,
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const contentUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+};
+
+export default function SectionThree() {
+  return (
+    <div className="bg-white px-6 pt-16 pb-20">
+      {/* Heading — each line rises out of its own mask */}
+      <motion.h2
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.4 }}
+        className="text-center font-molitor text-hero font-bold leading-[48px] tracking-85px text-navy-deep"
+      >
+        {HEADING.map((line) => (
+          <span key={line} className="block overflow-hidden">
+            <motion.span variants={rise} className="block">
+              {line}
+            </motion.span>
+          </span>
+        ))}
+      </motion.h2>
+
+      {/* Subtext — blur-fade up, staggered per line */}
+      <motion.p
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.6 }}
+        className="mt-5 text-center font-molitor text-lg font-semibold leading-[110%] tracking-1% text-navy-deep"
+      >
+        {SUBTEXT.map((line) => (
+          <motion.span key={line} variants={blurUp} className="block">
+            {line}
+          </motion.span>
+        ))}
+      </motion.p>
+
+      {/* Destination cards */}
+      <div className="mx-auto mt-20 flex max-w-md flex-col gap-6">
+        {DATA.map((d, idx) => (
+          <motion.article
+            key={d.src}
+            variants={card}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+            className="group relative h-[580px] overflow-hidden rounded-lg"
+          >
+            {/* Photo — subtle zoom on hover */}
+            <Image
+              src={"/images/" + d.src}
+              alt={d.heading}
+              fill
+              sizes="(max-width: 768px) 100vw, 448px"
+              className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.06]"
+            />
+
+            {/* Legibility gradient — darker top & bottom */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/35" />
+
+            {/* Content */}
+            <div className="relative flex h-full flex-col justify-between px-6 pt-8 pb-9">
+              {/* Route chips */}
+              <motion.div
+                variants={contentUp}
+                className={`flex flex-wrap items-center gap-x-2 gap-y-1 font-departure text-[11px] uppercase tracking-[0.14em] ${idx === 2 ? "text-[#E2DAC8]" : "text-[#3D2F1E]"}`}
+              >
+                {d.routes.map((r, i) => (
+                  <span key={r} className="flex items-center gap-2">
+                    {i > 0 && (
+                      <span className="text-brand-yellow-1">&middot;</span>
+                    )}
+                    {r}
+                  </span>
+                ))}
+              </motion.div>
+
+              {/* Heading + actions */}
+              <motion.div variants={contentUp}>
+                <h3 className="max-w-[92%] font-molitor text-lg font-bold leading-[118%] text-white">
+                  {d.heading}
+                </h3>
+
+                <div className="mt-10 flex items-center gap-3">
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                    className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-1px text-navy-deep"
+                  >
+                    Explore this route
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    aria-label="Save route"
+                    whileHover={{ scale: 1.12 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    // ring-1 ring-white/40
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white  backdrop-blur-sm transition-colors hover:bg-white/15"
+                  >
+                    <LuBookmark size={18} strokeWidth={1.75} />
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          </motion.article>
+        ))}
+      </div>
+    </div>
+  );
+}
