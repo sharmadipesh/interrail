@@ -147,7 +147,7 @@ export default function SectionTwo() {
               variants={fadeUp}
               className="text-sm leading-[110%] tracking-lead"
             >
-              Nemo enim ipsam qui voluptatem quia sit eos aspernatur aut odit.
+              Lorem ipsum dolor sit amet consectetur. unt in culpa qui officia.
             </motion.p>
             <motion.p
               variants={fadeUp}
