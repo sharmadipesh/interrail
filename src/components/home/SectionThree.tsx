@@ -80,7 +80,7 @@ const contentUp: Variants = {
 
 export default function SectionThree() {
   return (
-    <div className="bg-white px-6 pt-16 pb-20">
+    <div className="bg-white px-6 pt-[100px] pb-20">
       {/* Heading — each line rises out of its own mask */}
       <motion.h2
         variants={stagger}
@@ -104,7 +104,7 @@ export default function SectionThree() {
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, amount: 0.6 }}
-        className="mt-5 text-center font-molitor text-lg font-semibold leading-[110%] tracking-1% text-navy-deep"
+        className="mt-5 text-center font-neuehaas text-lg font-medium leading-[110%] tracking-3% text-navy-deep"
       >
         {SUBTEXT.map((line) => (
           <motion.span key={line} variants={blurUp} className="block">
@@ -122,7 +122,7 @@ export default function SectionThree() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.25 }}
-            className="group relative h-[580px] overflow-hidden rounded-lg"
+            className="group relative h-[580px] overflow-hidden"
           >
             {/* Photo — subtle zoom on hover */}
             <Image
@@ -134,7 +134,7 @@ export default function SectionThree() {
             />
 
             {/* Legibility gradient — darker top & bottom */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/35" />
+            {/* <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/35" /> */}
 
             {/* Content */}
             <div className="relative flex h-full flex-col justify-between px-6 pt-8 pb-9">
@@ -165,7 +165,7 @@ export default function SectionThree() {
                     whileHover={{ scale: 1.02, y: -1 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                    className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-1px text-navy-deep"
+                    className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-[10%] text-navy-deep"
                   >
                     Explore this route
                   </motion.button>

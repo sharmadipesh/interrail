@@ -5,7 +5,7 @@ import { motion, type Variants } from "framer-motion";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
-const HEADLINE = ["GO", "BEFORE", "YOU", "DON'T"];
+const HEADLINE = ["Paris on", "Monday.", "The Coast", "by Friday."];
 
 const container: Variants = {
   hidden: {},
@@ -87,7 +87,7 @@ export default function Banner() {
                           duration: 0.6,
                           ease: EASE_OUT,
                         }}
-                        className="relative ml-4 inline-block h-6 w-6 shrink-0 align-middle mt-8"
+                        className="relative ml-4 inline-block h-6 w-6 shrink-0 align-middle mt-3"
                       >
                         {/* Static disc + center dot */}
                         <svg viewBox="0 0 100 100" className="h-full w-full">
@@ -164,11 +164,13 @@ export default function Banner() {
               initial="hidden"
               animate="show"
               transition={{ delay: 1.05, duration: 0.7, ease: EASE_OUT }}
-              className="mt-6 max-w-md font-molitor text-lead font-normal leading-lead tracking-lead text-white"
+              className="mt-3 max-w-md font-neuehaas text-lead font-normal leading-lead tracking-2% text-white"
             >
-              The deeper you go into Europe.
+              Explore your European
               <br />
-              The deeper it goes into you.
+              adventure and uncover new
+              <br />
+              parts of yourself along the way.
             </motion.p>
           </div>
 
@@ -184,7 +186,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-lead text-navy-deep shadow-lg shadow-black/20 transition-colors hover:bg-brand-yellow-hover"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-navy-deep shadow-lg shadow-black/20 transition-colors hover:bg-brand-yellow-hover"
             >
               Find your trip
             </motion.button>
@@ -193,7 +195,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 py-3 text-xs font-semibold uppercase tracking-lead text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
             >
               I know my trip
             </motion.button>

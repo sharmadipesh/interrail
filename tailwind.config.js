@@ -23,6 +23,7 @@ module.exports = {
         molitor: ["Molitor", "sans-serif"],
         humant: ["Humant", "sans-serif"],
         departure: ['"Departure Mono"', "monospace"],
+        neuehaas: ['"Neue Haas Display Round"', "sans-serif"],
       },
       fontSize: {
         // Hero headline — Molitor Display Bold (Figma spec)
@@ -41,6 +42,8 @@ module.exports = {
         "85px": "-0.85px",
         "144%": "144%",
         "1%": "1%",
+        "2%": "2%",
+        "3%": "3%",
         "6%": "6%",
       },
     },

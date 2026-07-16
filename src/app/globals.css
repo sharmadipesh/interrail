@@ -25,13 +25,20 @@
   font-display: swap;
 }
 
-/* Molitor Display — display face for headlines (light + regular + bold). */
+/* Molitor Display — display face for headlines (light + regular + bold).
+   The trial font ships with inflated vertical metrics (ascent ~118% / font-box
+   ~1.4), which makes glyphs sit low and their descenders overflow tight line
+   boxes — cropping headings. These overrides normalise the metrics so the font
+   sits correctly and descenders stay inside the line box. */
 @font-face {
   font-family: "Molitor";
   src: url("/fonts/Molitortrial-DisplayLight.otf") format("opentype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
+  ascent-override: 85%;
+  descent-override: 28%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: "Molitor";
@@ -39,6 +46,9 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  ascent-override: 85%;
+  descent-override: 28%;
+  line-gap-override: 0%;
 }
 @font-face {
   font-family: "Molitor";
@@ -46,12 +56,24 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+  ascent-override: 85%;
+  descent-override: 28%;
+  line-gap-override: 0%;
 }
 
 /* Departure Mono — pixel/monospace face for accents (e.g. "SINCE 1972"). */
 @font-face {
   font-family: "Departure Mono";
   src: url("/fonts/DepartureMono-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Neue Haas Grotesk Display Round — 55 Roman (regular). */
+@font-face {
+  font-family: "Neue Haas Display Round";
+  src: url("/fonts/neuehaasgrotdispround-55roman-trial.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;

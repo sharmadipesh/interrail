@@ -1,8 +1,13 @@
 "use client";
 
-import Image from "next/image";
-import { useRef } from "react";
-import { motion, useScroll, useTransform, type Variants } from "framer-motion";
+import { useEffect, useRef } from "react";
+import {
+  motion,
+  useInView,
+  useScroll,
+  useTransform,
+  type Variants,
+} from "framer-motion";
 
 // Premium ease-out — smooth, no bounce.
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -60,10 +65,42 @@ export default function SectionTwo() {
   // element suppresses its own whileInView IntersectionObserver.)
   const veniamX = useTransform(scrollYProgress, [0, 1], ["-4%", "4%"]);
 
+  // Autoplay the clip only while it's on screen; pause it otherwise.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoWrapRef = useRef<HTMLDivElement>(null);
+  const videoInView = useInView(videoWrapRef, { amount: 0.4 });
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (videoInView) {
+      const p = v.play();
+      if (p) p.catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [videoInView]);
+
+  // Bike clip — same viewport play/pause behaviour.
+  const bikeVideoRef = useRef<HTMLVideoElement>(null);
+  const bikeWrapRef = useRef<HTMLDivElement>(null);
+  const bikeInView = useInView(bikeWrapRef, { amount: 0.4 });
+
+  useEffect(() => {
+    const v = bikeVideoRef.current;
+    if (!v) return;
+    if (bikeInView) {
+      const p = v.play();
+      if (p) p.catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [bikeInView]);
+
   return (
     <section
       ref={ref}
-      className="overflow-hidden bg-white px-8 pt-[105px] pb-[200px]"
+      className="overflow-hidden bg-white px-8 pt-[125px] pb-[200px]"
     >
       <div className="mx-auto max-w-xl">
         {/* Heading — each line rises out of its own mask */}
@@ -89,15 +126,23 @@ export default function SectionTwo() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.6 }}
-          className="mt-8 grid grid-cols-2 gap-7 font-molitor font-normal text-black"
+          className="mt-8 grid grid-cols-2 gap-7 font-neuehaas font-medium text-black"
         >
-          <motion.p
-            variants={fadeUp}
-            className="text-sm leading-[110%] tracking-lead"
-          >
-            Lorem ipsum dolor sit amet consectetur. Unt in culpa qui officia.
-          </motion.p>
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-10">
+            <motion.p
+              variants={fadeUp}
+              className="text-sm leading-[110%] tracking-lead"
+            >
+              Lorem ipsum dolor sit amet consectetur. unt in culpa qui officia.
+            </motion.p>
+            <motion.p
+              variants={fadeUp}
+              className="text-sm leading-[110%] tracking-lead"
+            >
+              sed quia consequuntur magni dolores eos qui ratione voluptatem.
+            </motion.p>
+          </div>
+          <div className="flex flex-col gap-10">
             <motion.p
               variants={fadeUp}
               className="text-sm leading-[110%] tracking-lead"
@@ -113,25 +158,32 @@ export default function SectionTwo() {
           </div>
         </motion.div>
 
-        {/* Train photo — fixed ~194px wide (per the reference), centered;
-            clip/overflow keeps the Ken Burns zoom cropped to the frame */}
-        <div className="mt-[136px] flex justify-end mr-8">
+        {/* Train clip — fixed ~194px wide; plays only while on screen. Reveals
+            with a fade + slow Ken Burns zoom, and lifts a touch on hover. */}
+        <div className="mt-[100px] mr-8 flex justify-end">
+          {/* shadow-xl shadow-black/20 */}
           <motion.div
+            ref={videoWrapRef}
             initial="hidden"
             whileInView="show"
             variants={photoFade}
             viewport={{ once: true, amount: 0.2 }}
-            className="w-[194px] max-w-full overflow-hidden rounded-[2px]"
+            whileHover={{ scale: 1.05, y: -3 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="w-[194px] max-w-full overflow-hidden rounded-[3px] "
           >
             <motion.div variants={kenBurns}>
-              <Image
-                width={194}
-                height={109}
-                className="h-auto w-full"
-                src="/images/section-2.2.png"
-                alt="Friends together on a train"
-                sizes="194px"
-              />
+              <video
+                ref={videoRef}
+                muted
+                loop
+                playsInline
+                preload="auto"
+                aria-label="Friends together on a train"
+                className="aspect-[194/109] w-full object-cover"
+              >
+                <source src="/images/section-2-1.mp4" type="video/mp4" />
+              </video>
             </motion.div>
           </motion.div>
         </div>
@@ -187,22 +239,29 @@ export default function SectionTwo() {
             </span>
           </motion.div>
 
-          {/* Bike photo — overlaps the word, parallax + bottom-up reveal on one node */}
+          {/* Bike clip — overlaps the word; plays only while on screen,
+              pops in on reveal and lifts a touch on hover. */}
           <motion.div
+            ref={bikeWrapRef}
             variants={photoPop}
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.2 }}
-            className="absolute left-[34px] top-[64px] z-0 w-[40%] overflow-hidden "
+            whileHover={{ scale: 1.04 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="absolute left-[34px] top-[64px] z-0 w-[40%] overflow-hidden"
           >
-            <Image
-              width={140}
-              height={170}
-              className="h-auto w-full"
-              src="/images/section-2.1.png"
-              sizes="(max-width: 640px) 40vw, 200px"
-              alt="A traveller with a bike at golden hour"
-            />
+            <video
+              ref={bikeVideoRef}
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-label="A traveller with a bike at golden hour"
+              className="aspect-[140/170] w-full object-cover"
+            >
+              <source src="/images/section-2-2.mp4" type="video/mp4" />
+            </video>
           </motion.div>
         </div>
       </div>
