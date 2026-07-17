@@ -23,10 +23,13 @@ export default function SmoothScroll({
     if (prefersReduced) return;
 
     const lenis = new Lenis({
-      duration: 0.9,
+      // Slightly snappier than the default glide: a shorter settle time plus a
+      // touch more travel per wheel tick, without losing the smoothing.
+      duration: 0.75,
       // easeOutExpo — smooth, premium deceleration.
       easing: (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
       smoothWheel: true,
+      wheelMultiplier: 1.15,
       touchMultiplier: 1.5,
       // Let Lenis own its rAF loop (started here, stopped on destroy) — more
       // robust than a manual loop across React StrictMode remounts.
