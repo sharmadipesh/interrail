@@ -190,16 +190,16 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 pt-[13.5px] pb-[10.5px] text-xs font-semibold uppercase tracking-[20%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 pt-[13.5px] pb-[10.5px] text-sm font-semibold uppercase tracking-[10%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
             >
-              Find your trip
+              Plan your trip
             </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 pt-[13.5px] pb-[10.5px] text-xs font-semibold uppercase tracking-[20%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 pt-[13.5px] pb-[10.5px] text-sm font-semibold uppercase tracking-[10%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
             >
               I know my trip
             </motion.button>

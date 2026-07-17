@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type Variants,
+} from "framer-motion";
 import { LuBookmark } from "react-icons/lu";
 
 // Premium ease-out — smooth, no bounce.
@@ -155,6 +162,88 @@ const contentUp: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
 };
 
+type Destination = (typeof DATA)[number];
+
+/**
+ * A destination card whose photo drifts vertically as the card scrolls through
+ * the viewport — a scroll-linked parallax, the vertical analogue of the drag
+ * parallax in SectionFour. The image layer is oversized (120% tall, offset
+ * -10%) so the ±44px drift always stays inside the overflow-hidden frame and
+ * never exposes an edge. Honours prefers-reduced-motion by holding still.
+ */
+function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
+  const ref = useRef<HTMLElement>(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], [-44, 44]);
+
+  return (
+    <motion.article
+      ref={ref}
+      variants={card}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.25 }}
+      className="group relative h-[580px] overflow-hidden"
+    >
+      {/* Photo — vertical scroll parallax inside the mask; subtle zoom on hover.
+          Parallax lives on this child, not the article, so the card's own
+          whileInView reveal (which also writes transform) isn't disturbed. */}
+      <motion.div
+        style={{ y: reduce ? 0 : y }}
+        className="absolute inset-x-0 -top-[10%] h-[120%]"
+      >
+        <Image
+          src={"/images/" + d.src}
+          alt={d.heading}
+          fill
+          sizes="(max-width: 768px) 100vw, 448px"
+          className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.06]"
+        />
+      </motion.div>
+
+      {/* Content */}
+      <div className="relative flex h-full flex-col justify-between px-6 pt-8 pb-9">
+        {/* Route chips */}
+        <motion.div
+          variants={contentUp}
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1 font-departure text-[11px] uppercase tracking-[0.14em] ${idx === 2 ? "text-[#E2DAC8]" : "text-[#3D2F1E]"}`}
+        >
+          {d.routes.map((r, i) => (
+            <span key={r} className="flex items-center gap-2">
+              {i > 0 && <span className="text-brand-yellow-1">&middot;</span>}
+              {r}
+            </span>
+          ))}
+        </motion.div>
+
+        {/* Heading + actions */}
+        <motion.div variants={contentUp}>
+          <h3 className="max-w-[92%] font-molitor text-lg font-bold leading-[118%] text-white">
+            {d.heading}
+          </h3>
+
+          <div className="mt-10 flex items-center gap-3">
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 400, damping: 22 }}
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-[10%] text-navy-deep"
+            >
+              Explore this route
+            </motion.button>
+            <SaveButton />
+          </div>
+        </motion.div>
+      </div>
+    </motion.article>
+  );
+}
+
 export default function SectionThree() {
   return (
     <div className="bg-white px-6 pt-[100px] pb-20">
@@ -193,64 +282,7 @@ export default function SectionThree() {
       {/* Destination cards */}
       <div className="mx-auto mt-20 flex max-w-md flex-col gap-6">
         {DATA.map((d, idx) => (
-          <motion.article
-            key={d.src}
-            variants={card}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.25 }}
-            className="group relative h-[580px] overflow-hidden"
-          >
-            {/* Photo — subtle zoom on hover */}
-            <Image
-              src={"/images/" + d.src}
-              alt={d.heading}
-              fill
-              sizes="(max-width: 768px) 100vw, 448px"
-              className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.06]"
-            />
-
-            {/* Legibility gradient — darker top & bottom */}
-            {/* <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/35" /> */}
-
-            {/* Content */}
-            <div className="relative flex h-full flex-col justify-between px-6 pt-8 pb-9">
-              {/* Route chips */}
-              <motion.div
-                variants={contentUp}
-                className={`flex flex-wrap items-center gap-x-2 gap-y-1 font-departure text-[11px] uppercase tracking-[0.14em] ${idx === 2 ? "text-[#E2DAC8]" : "text-[#3D2F1E]"}`}
-              >
-                {d.routes.map((r, i) => (
-                  <span key={r} className="flex items-center gap-2">
-                    {i > 0 && (
-                      <span className="text-brand-yellow-1">&middot;</span>
-                    )}
-                    {r}
-                  </span>
-                ))}
-              </motion.div>
-
-              {/* Heading + actions */}
-              <motion.div variants={contentUp}>
-                <h3 className="max-w-[92%] font-molitor text-lg font-bold leading-[118%] text-white">
-                  {d.heading}
-                </h3>
-
-                <div className="mt-10 flex items-center gap-3">
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                    className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-[10%] text-navy-deep"
-                  >
-                    Explore this route
-                  </motion.button>
-                  <SaveButton />
-                </div>
-              </motion.div>
-            </div>
-          </motion.article>
+          <DestinationCard key={d.src} d={d} idx={idx} />
         ))}
       </div>
     </div>
