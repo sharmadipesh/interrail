@@ -345,10 +345,14 @@ export default function SectionFour() {
         {/* Heading — each line rises out of its own mask */}
         <motion.h2
           variants={stagger}
-          className="px-6 font-molitor text-[32px] font-bold leading-[34px] tracking-[-0.27px] text-navy-deep"
+          className="px-6 font-molitor text-[32px] font-bold leading-[46px] tracking-[-0.27px] text-navy-deep"
         >
           {HEADING.map((line) => (
-            <span key={line} className="block overflow-hidden">
+            // Roomy line-height so descenders (the "g" in Dignissimos) fit
+            // inside the overflow-hidden reveal mask; the negative margin pulls
+            // the lines back to the intended ~34px spacing. Padding can't be
+            // used here — it would let the text peek before the rise animates.
+            <span key={line} className="-mb-3 block overflow-hidden">
               <motion.span variants={rise} className="block">
                 {line}
               </motion.span>

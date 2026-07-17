@@ -170,7 +170,7 @@ export default function SectionTwo() {
             viewport={{ once: true, amount: 0.2 }}
             whileHover={{ scale: 1.05, y: -3 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-[194px] max-w-full overflow-hidden rounded-[3px] "
+            className="w-[194px] max-w-full overflow-hidden"
           >
             <motion.div variants={kenBurns}>
               <video
