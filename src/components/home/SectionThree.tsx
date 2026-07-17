@@ -232,7 +232,7 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-[10%] text-navy-deep"
+              className="flex-1 whitespace-nowrap font-molitor font-molitor-caps rounded-[3px] bg-brand-yellow-1 border-brand-yellow px-5 py-3 text-sm font-semibold uppercase tracking-[10%] text-navy-deep"
             >
               Explore this route
             </motion.button>

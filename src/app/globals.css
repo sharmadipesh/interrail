@@ -88,3 +88,19 @@ body {
   color: var(--foreground);
   background: var(--background);
 }
+
+/* All-caps Molitor labels (buttons, chips) sit ~1–2px high because the trial
+   font reserves descent space — see the @font-face overrides above — that
+   capitals never use. Trimming the text box to the cap height (top) and the
+   alphabetic baseline (bottom) makes the box hug the real ink, so the glyphs
+   center on their actual shape. With symmetric padding the label is then
+   perfectly centered, no per-button magic numbers.
+
+   OPT-IN ONLY. Never put this on headings: their overflow-hidden reveal masks
+   depend on the full line box, and trimming clips the descenders badly. */
+@layer utilities {
+  .font-molitor-caps {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+}
