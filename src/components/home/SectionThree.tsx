@@ -1,11 +1,88 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import { motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { LuBookmark } from "react-icons/lu";
 
 // Premium ease-out — smooth, no bounce.
 const EASE = [0.22, 1, 0.36, 1] as const;
+
+// Directions (degrees) for the little particle burst fired on save.
+const BURST = [30, 90, 150, 210, 270, 330];
+
+/**
+ * Circular save toggle. On save the icon fills yellow with a springy pop, a
+ * ring ripples outward, and a burst of dots scatters — a small, satisfying
+ * flourish. Toggling off just empties the icon. Holds its own state so each
+ * card in the list saves independently.
+ */
+function SaveButton() {
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <motion.button
+      type="button"
+      aria-label={saved ? "Remove saved route" : "Save route"}
+      aria-pressed={saved}
+      onClick={() => setSaved((s) => !s)}
+      whileHover={{ scale: 1.12 }}
+      whileTap={{ scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+      className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-white backdrop-blur-sm transition-colors hover:bg-white/15"
+    >
+      {/* Ripple ring + particle burst — mounted only while saved */}
+      <AnimatePresence>
+        {saved && (
+          <motion.span
+            key="fx"
+            aria-hidden
+            exit={{ opacity: 0 }}
+            className="pointer-events-none absolute inset-0"
+          >
+            {/* Expanding ring */}
+            <motion.span
+              initial={{ scale: 0.4, opacity: 0.7 }}
+              animate={{ scale: 1.9, opacity: 0 }}
+              transition={{ duration: 0.5, ease: EASE }}
+              className="absolute inset-0 rounded-full border border-brand-yellow-1"
+            />
+            {/* Dots scatter outward, then vanish */}
+            {BURST.map((deg) => (
+              <motion.span
+                key={deg}
+                initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                animate={{
+                  x: Math.cos((deg * Math.PI) / 180) * 17,
+                  y: Math.sin((deg * Math.PI) / 180) * 17,
+                  scale: 0,
+                  opacity: 0,
+                }}
+                transition={{ duration: 0.45, ease: EASE }}
+                className="absolute left-1/2 top-1/2 -ml-0.5 -mt-0.5 h-1 w-1 rounded-full bg-brand-yellow-1"
+              />
+            ))}
+          </motion.span>
+        )}
+      </AnimatePresence>
+
+      {/* Icon: pops and fills on save */}
+      <motion.span
+        animate={{ scale: saved ? [1, 1.35, 1] : 1 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        className="relative grid place-items-center"
+      >
+        <LuBookmark
+          size={18}
+          strokeWidth={1.75}
+          className={
+            saved ? "fill-brand-yellow-1 text-brand-yellow-1" : "fill-none"
+          }
+        />
+      </motion.span>
+    </motion.button>
+  );
+}
 
 const HEADING = ["Where next?", "destinations", "your europe."];
 const SUBTEXT = [
@@ -169,17 +246,7 @@ export default function SectionThree() {
                   >
                     Explore this route
                   </motion.button>
-                  <motion.button
-                    type="button"
-                    aria-label="Save route"
-                    whileHover={{ scale: 1.12 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    // ring-1 ring-white/40
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white  backdrop-blur-sm transition-colors hover:bg-white/15"
-                  >
-                    <LuBookmark size={18} strokeWidth={1.75} />
-                  </motion.button>
+                  <SaveButton />
                 </div>
               </motion.div>
             </div>

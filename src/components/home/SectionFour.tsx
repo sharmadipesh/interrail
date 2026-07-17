@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   animate,
+  AnimatePresence,
   motion,
   useMotionValue,
   useTransform,
@@ -17,6 +18,9 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 // Gap between cards, in px. Must mirror the `gap-5` on the track.
 const GAP = 20;
+
+// Directions (degrees) for the little particle burst fired on save.
+const BURST = [30, 90, 150, 210, 270, 330];
 
 const HEADING = ["At vero eos", "Accusamus Iusto", "Odio Dignissimos"];
 
@@ -122,7 +126,7 @@ function Card({
       className="w-[78%] max-w-[313px] shrink-0"
     >
       {/* Photo — masked frame, ken-burns reveal, drag parallax */}
-      <div className="relative aspect-[313/198] overflow-hidden rounded-[3px] bg-neutral-200">
+      <div className="relative aspect-[313/198] overflow-hidden bg-neutral-200">
         <motion.div variants={kenBurns} className="absolute inset-0">
           <motion.div
             style={{ x: imgX }}
@@ -154,10 +158,45 @@ function Card({
           transition={{ type: "spring", stiffness: 400, damping: 20 }}
           className="absolute bottom-3 right-4 grid h-10 w-10 place-items-center rounded-full bg-black/35 text-white backdrop-blur-sm transition-colors hover:bg-black/50"
         >
+          {/* Ripple ring + particle burst — mounted only while saved */}
+          <AnimatePresence>
+            {saved && (
+              <motion.span
+                key="fx"
+                aria-hidden
+                exit={{ opacity: 0 }}
+                className="pointer-events-none absolute inset-0"
+              >
+                {/* Expanding ring */}
+                <motion.span
+                  initial={{ scale: 0.4, opacity: 0.7 }}
+                  animate={{ scale: 1.9, opacity: 0 }}
+                  transition={{ duration: 0.5, ease: EASE }}
+                  className="absolute inset-0 rounded-full border border-brand-yellow-1"
+                />
+                {/* Dots scatter outward, then vanish */}
+                {BURST.map((deg) => (
+                  <motion.span
+                    key={deg}
+                    initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                    animate={{
+                      x: Math.cos((deg * Math.PI) / 180) * 16,
+                      y: Math.sin((deg * Math.PI) / 180) * 16,
+                      scale: 0,
+                      opacity: 0,
+                    }}
+                    transition={{ duration: 0.45, ease: EASE }}
+                    className="absolute left-1/2 top-1/2 -ml-0.5 -mt-0.5 h-1 w-1 rounded-full bg-brand-yellow-1"
+                  />
+                ))}
+              </motion.span>
+            )}
+          </AnimatePresence>
+
           <motion.span
             animate={{ scale: saved ? [1, 1.35, 1] : 1 }}
             transition={{ duration: 0.4, ease: EASE }}
-            className="grid place-items-center"
+            className="relative grid place-items-center"
           >
             <LuBookmark
               size={17}
@@ -358,7 +397,7 @@ export default function SectionFour() {
         {/* Pagination — the active dot fades up in yellow */}
         <motion.div
           variants={contentUp}
-          className="mt-12 flex justify-center gap-2.5"
+          className="mt-12 flex justify-center gap-3"
         >
           {DATA.map((_, i) => (
             <button
@@ -367,7 +406,7 @@ export default function SectionFour() {
               onClick={() => goTo(i)}
               aria-label={`Go to route ${i + 1}`}
               aria-current={i === index}
-              className="relative grid h-6 w-6 place-items-center"
+              className="relative grid h-3 w-3 place-items-center"
             >
               <span className="block h-2.5 w-2.5 rounded-full bg-[#D1D1CC]" />
               <motion.span

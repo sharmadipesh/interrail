@@ -67,7 +67,7 @@ export default function Banner() {
               variants={container}
               initial="hidden"
               animate="show"
-              className="font-molitor text-hero uppercase leading-hero tracking-hero font-bold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
+              className="font-molitor text-hero leading-hero tracking-hero font-bold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
             >
               {HEADLINE.map((word, i) => (
                 <span key={word} className="block overflow-hidden">
