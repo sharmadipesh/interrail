@@ -174,7 +174,11 @@ export default function Banner() {
             </motion.p>
           </div>
 
-          {/* Actions — pinned to the bottom */}
+          {/* Actions — pinned to the bottom. Note the asymmetric padding:
+              Molitor's descent-override (see globals.css) reserves ~3px below
+              the baseline for descenders that all-caps labels never use, which
+              floats the text ~1.5px high. pt/pb of 13.5/10.5 nudges the caps
+              back to optical center without changing button height. */}
           <motion.div
             variants={fadeUp}
             initial="hidden"
@@ -186,7 +190,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] bg-brand-yellow px-6 pt-[13.5px] pb-[10.5px] text-xs font-semibold uppercase tracking-[20%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
             >
               Find your trip
             </motion.button>
@@ -195,7 +199,7 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 py-3 text-xs font-semibold uppercase tracking-[20%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
+              className="flex-1 whitespace-nowrap font-molitor rounded-[3px] border border-brand-yellow bg-transparent px-6 pt-[13.5px] pb-[10.5px] text-xs font-semibold uppercase tracking-[20%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
             >
               I know my trip
             </motion.button>

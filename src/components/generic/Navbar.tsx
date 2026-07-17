@@ -13,6 +13,13 @@ const NAVY = "#242438";
 const barVariants: Variants = {
   hidden: { y: -80, opacity: 0 },
   visible: { y: 0, opacity: 1, transition: { duration: 0.7, ease: EASE } },
+  // Slides fully up out of view while the user scrolls down. -120% clears the
+  // bar and its drop shadow; opacity stays 1 so it slides rather than fades.
+  scrolledHidden: {
+    y: "-120%",
+    opacity: 1,
+    transition: { duration: 0.4, ease: EASE },
+  },
 };
 
 // Right-hand action group orchestrates a staggered reveal of its children.
@@ -81,12 +88,15 @@ function Hamburger() {
   );
 }
 
-export default function Navbar() {
+export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   return (
     <motion.header
       variants={barVariants}
       initial="hidden"
-      animate="visible"
+      // Drops in on mount ("hidden" → "visible"); thereafter `hidden` toggles
+      // the scroll slide. Children (icons) don't define "scrolledHidden", so
+      // they hold their revealed state instead of re-staggering on each show.
+      animate={hidden ? "scrolledHidden" : "visible"}
       style={{ color: NAVY }}
       // Floating overlay: out of flow (fixed) so the banner stays a true 100vh
       // hero, with breathing room on the top/left/right.
