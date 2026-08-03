@@ -107,7 +107,7 @@ export default function SectionThree() {
   return (
     // pb matches the run-out the Figma frame leaves below the copy block, which
     // is where the portrait clip overhangs to.
-    <section className="bg-white px-6 pb-[159px]">
+    <section className="bg-white px-6 pb-[158px] pt-7">
       <motion.div
         variants={stagger}
         initial="hidden"
