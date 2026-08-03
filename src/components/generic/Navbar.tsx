@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
+import { TbWorld } from "react-icons/tb";
 import { LuSearch, LuBookmark, LuUser, LuShoppingBag } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Logo2 from "./Logo2";
@@ -37,10 +38,11 @@ const itemVariants: Variants = {
 };
 
 const ACTIONS: { Icon: IconType; label: string }[] = [
+  { Icon: TbWorld, label: "Currancy" },
   { Icon: LuSearch, label: "Search" },
   // { Icon: LuBookmark, label: "Saved" },
   { Icon: LuUser, label: "Account" },
-  { Icon: LuShoppingBag, label: "Bag" },
+  // { Icon: LuShoppingBag, label: "Bag" },
 ];
 
 /** Circular icon button with a hover pill, scale, and tap feedback. */
@@ -100,10 +102,10 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       style={{ color: NAVY }}
       // Floating overlay: out of flow (fixed) so the banner stays a true 100vh
       // hero, with breathing room on the top/left/right.
-      className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6 sm:pt-5"
+      className="fixed inset-x-0 top-0 z-50 px-5 pt-4 sm:px-6 sm:pt-5"
     >
       {/*  */}
-      <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between  border border-white/60 bg-white px-3 shadow-xl shadow-black/10 backdrop-blur-xl sm:h-16 sm:px-5">
+      <nav className="mx-auto flex h-[52px] max-w-7xl items-center justify-between  border border-white/60 bg-white px-3 shadow-xl shadow-black/10 backdrop-blur-xl sm:px-5">
         {/* Left: menu + logo */}
         <div className="flex items-center gap-1 sm:gap-2">
           <Hamburger />
@@ -115,7 +117,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             whileTap={{ scale: 0.97 }}
             className="-ml-1.5 inline-flex sm:-ml-2"
           >
-            <Logo2 className="h-7 w-auto sm:h-9" />
+            <Logo2 className="h-[26px] w-auto sm:h-9" />
           </motion.a>
         </div>
 

@@ -2,78 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Humant — the interrail brand typeface (used by the logo wordmark). */
-@font-face {
-  font-family: "Humant";
-  src: url("/fonts/humant-regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Humant";
-  src: url("/fonts/humant-medium.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Humant";
-  src: url("/fonts/humant-bold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Molitor Display — display face for headlines (light + regular + bold).
-   The trial font ships with inflated vertical metrics (ascent ~118% / font-box
-   ~1.4), which makes glyphs sit low and their descenders overflow tight line
-   boxes — cropping headings. These overrides normalise the metrics so the font
-   sits correctly and descenders stay inside the line box. */
-@font-face {
-  font-family: "Molitor";
-  src: url("/fonts/Molitortrial-DisplayLight.otf") format("opentype");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 85%;
-  descent-override: 28%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Molitor";
-  src: url("/fonts/Molitortrial-DisplayRegular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 85%;
-  descent-override: 28%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Molitor";
-  src: url("/fonts/Molitortrial-DisplayBold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 85%;
-  descent-override: 28%;
-  line-gap-override: 0%;
-}
-
-/* Departure Mono — pixel/monospace face for accents (e.g. "SINCE 1972"). */
+/* Departure Mono — pixel/monospace face for accents (e.g. "SINCE 1972").
+   The only locally-hosted face; Poppins and Roboto Mono are loaded through
+   next/font/google in src/app/layout.tsx. */
 @font-face {
   font-family: "Departure Mono";
   src: url("/fonts/DepartureMono-Regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Neue Haas Grotesk Display Round — 55 Roman (regular). */
-@font-face {
-  font-family: "Neue Haas Display Round";
-  src: url("/fonts/neuehaasgrotdispround-55roman-trial.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -87,20 +21,4 @@
 body {
   color: var(--foreground);
   background: var(--background);
-}
-
-/* All-caps Molitor labels (buttons, chips) sit ~1–2px high because the trial
-   font reserves descent space — see the @font-face overrides above — that
-   capitals never use. Trimming the text box to the cap height (top) and the
-   alphabetic baseline (bottom) makes the box hug the real ink, so the glyphs
-   center on their actual shape. With symmetric padding the label is then
-   perfectly centered, no per-button magic numbers.
-
-   OPT-IN ONLY. Never put this on headings: their overflow-hidden reveal masks
-   depend on the full line box, and trimming clips the descenders badly. */
-@layer utilities {
-  .font-molitor-caps {
-    text-box-trim: trim-both;
-    text-box-edge: cap alphabetic;
-  }
 }

@@ -5,7 +5,7 @@ import { motion, type Variants } from "framer-motion";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
-const HEADLINE = ["Paris on", "Monday.", "The Coast", "by Friday."];
+const HEADLINE = ["Next stop:", "Somewhere", "in Europe"];
 
 const container: Variants = {
   hidden: {},
@@ -61,13 +61,13 @@ export default function Banner() {
       <div className="relative z-10 flex h-full flex-col">
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pb-14 pt-24 sm:px-10 sm:pb-16 lg:px-16">
           {/* Headline + subheading, vertically centered in the remaining space */}
-          <div className="flex flex-1 flex-col justify-center">
+          <div className="flex flex-1 flex-col justify-center mb-10">
             {/* Headline */}
             <motion.h1
               variants={container}
               initial="hidden"
               animate="show"
-              className="font-molitor text-hero leading-hero tracking-hero font-bold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
+              className="text-hero leading-hero tracking-1px font-semibold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
             >
               {HEADLINE.map((word, i) => (
                 <span key={word} className="block overflow-hidden">
@@ -101,17 +101,17 @@ export default function Banner() {
                               <stop
                                 offset="0%"
                                 stopColor="#c4c4c4"
-                                stopOpacity="0.65"
+                                stopOpacity="0.38"
                               />
                               <stop
                                 offset="55%"
                                 stopColor="#a3a3a3"
-                                stopOpacity="0.6"
+                                stopOpacity="0.32"
                               />
                               <stop
                                 offset="100%"
                                 stopColor="#7f7f7f"
-                                stopOpacity="0.5"
+                                stopOpacity="0.25"
                               />
                             </radialGradient>
                           </defs>
@@ -164,21 +164,17 @@ export default function Banner() {
               initial="hidden"
               animate="show"
               transition={{ delay: 1.05, duration: 0.7, ease: EASE_OUT }}
-              className="mt-3 max-w-md font-neuehaas text-lead font-normal leading-lead tracking-2% text-white"
+              className="mt-6 max-w-md text-lead font-normal leading-lead tracking-2px text-white"
             >
-              Explore your European
+              Go country to country with
               <br />
-              adventure and uncover new
+              one rail Pass. See everything
               <br />
-              parts of yourself along the way.
+              in between along the way.
             </motion.p>
           </div>
 
-          {/* Actions — pinned to the bottom. Note the asymmetric padding:
-              Molitor's descent-override (see globals.css) reserves ~3px below
-              the baseline for descenders that all-caps labels never use, which
-              floats the text ~1.5px high. pt/pb of 13.5/10.5 nudges the caps
-              back to optical center without changing button height. */}
+          {/* Actions — pinned to the bottom. */}
           <motion.div
             variants={fadeUp}
             initial="hidden"
@@ -190,18 +186,9 @@ export default function Banner() {
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor font-molitor-caps rounded-[3px] bg-brand-yellow px-6 py-3.5 text-sm font-semibold uppercase tracking-[10%] text-navy-deep transition-colors hover:bg-brand-yellow-hover"
+              className="flex-1 whitespace-nowrap rounded-[3px] bg-brand-yellow px-6 py-3.5 text-base font-semibold uppercase text-navy-1 transition-colors hover:bg-brand-yellow-hover"
             >
               Plan your trip
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className="flex-1 whitespace-nowrap font-molitor font-molitor-caps rounded-[3px] border border-brand-yellow bg-transparent px-6 py-3.5 text-sm font-semibold uppercase tracking-[10%] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10"
-            >
-              I know my trip
             </motion.button>
           </motion.div>
         </div>

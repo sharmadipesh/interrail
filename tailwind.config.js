@@ -9,25 +9,24 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          yellow: "#FBC626",
+          yellow: "#FFD400",
           "yellow-hover": "#F2C65F",
           "yellow-1": "#FFD400",
         },
         navy: {
-          DEFAULT: "#242438",
+          DEFAULT: "#140A33",
           deep: "#1B2040",
+          1: "#140A33",
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        molitor: ["Molitor", "sans-serif"],
-        humant: ["Humant", "sans-serif"],
+        sans: ["var(--font-poppins)", "system-ui", "sans-serif"],
+        mono: ["var(--font-roboto-mono)", "ui-monospace", "monospace"],
         departure: ['"Departure Mono"', "monospace"],
-        neuehaas: ['"Neue Haas Display Round"', "sans-serif"],
       },
       fontSize: {
         // Hero headline — Molitor Display Bold (Figma spec)
-        hero: "50px",
+        hero: "48px",
         // Lead paragraph — Molitor Display Regular (Figma spec)
         lead: "20px",
       },
@@ -36,6 +35,10 @@ module.exports = {
         lead: "1.1",
       },
       letterSpacing: {
+        "1px": "-1px",
+        "2px": "-0.2px",
+        "3px": "-3px",
+        16: "0.16px",
         hero: "-0.44px",
         lead: "1px",
         "27px": "-0.27px",

@@ -123,7 +123,7 @@ export default function Logo({ className = "h-12 w-auto" }: LogoProps) {
         <path d="M36 65 L60 65 L61.5 72 L34.5 72 Z" />
       </g>
 
-      {/* Step 3: wordmark (Humant), clipped for the left-to-right reveal. */}
+      {/* Step 3: wordmark (Poppins), clipped for the left-to-right reveal. */}
       <g clipPath="url(#text-clip)">
         <text
           x={104}
@@ -131,7 +131,7 @@ export default function Logo({ className = "h-12 w-auto" }: LogoProps) {
           fill={NAVY}
           dominantBaseline="central"
           style={{
-            fontFamily: "Humant, var(--font-inter), sans-serif",
+            fontFamily: "var(--font-poppins), sans-serif",
             fontWeight: 700,
             fontSize: "84px",
             letterSpacing: "-1.5px",
@@ -140,8 +140,8 @@ export default function Logo({ className = "h-12 w-auto" }: LogoProps) {
           interrail
         </text>
         {/* Two-dot tittle on the last "i": the font supplies the navy (ink)
-            dot; this yellow dot overlaps it, offset up-and-right. Positions
-            tuned to Humant metrics below. */}
+            dot; this yellow dot overlaps it, offset up-and-right. Position
+            tuned to Poppins metrics below. */}
         <circle cx={362} cy={18.5} r={8.5} fill={YELLOW} />
       </g>
 

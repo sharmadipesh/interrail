@@ -1,11 +1,19 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
+
 import Navbar from "@/components/generic/Navbar";
 import Banner from "@/components/home/Banner";
 import SectionTwo from "@/components/home/SectionTwo";
 import SectionThree from "@/components/home/SectionThree";
 import SectionFour from "@/components/home/SectionFour";
+import SectionFive from "@/components/home/SectionFive";
+import SectionSix from "@/components/home/SectionSix";
+import SectionEight from "@/components/home/SectionEight";
+import SectionNine from "@/components/home/SectionNine";
+import SectionTen from "@/components/home/SectionTen";
+import SectionEle from "@/components/home/SectionEle";
+import SectionTwe from "@/components/home/SectionTwe";
+import Footer from "@/components/home/Footer";
 
 // Always show the bar within this many px of the top — the hero keeps its nav.
 const TOP_ZONE = 80;
@@ -75,6 +83,14 @@ export default function Home() {
       <SectionTwo />
       <SectionThree />
       <SectionFour />
+      <SectionFive />
+      <SectionSix />
+      <SectionEight />
+      <SectionNine />
+      <SectionTen />
+      <SectionEle />
+      <SectionTwe />
+      <Footer />
     </main>
   );
 }
