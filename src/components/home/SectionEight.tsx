@@ -63,12 +63,20 @@ const HEADING_LINES = ["Stories", "from the", "tracks"];
 const EASE = cubicBezier(0.22, 1, 0.36, 1);
 
 /**
- * Drift only. At ±14px across the whole crossing this is meant to sit below
- * conscious notice — the filmstrip is the animation, this is just parallax
- * keeping the photograph from feeling glued to the page.
+ * Hero parallax.
+ *
+ * ±44px is 88px of travel across the ~1538px the section takes to cross a
+ * phone screen — a ~5.7% differential against the page. Enough to read as
+ * depth rather than a flat backdrop, still far short of the exaggerated
+ * half-speed treatment that makes a hero look detached from its own section.
+ *
+ * The spring is deliberately tighter than a heavily damped one would be
+ * (ratio 1.26, ~115ms): over-damping makes the photograph visibly lag the
+ * scroll, and a background that is always catching up reads as sluggish
+ * rather than parallaxed. This settles quickly and cannot overshoot.
  */
-const PARALLAX_SPRING = { stiffness: 120, damping: 28, mass: 0.45 } as const;
-const DRIFT = 14;
+const PARALLAX_SPRING = { stiffness: 140, damping: 20, mass: 0.45 } as const;
+const DRIFT = 44;
 
 /** Shell exists only to propagate state; the order is set by explicit delays. */
 const shell: Variants = { hidden: {}, show: {} };
@@ -177,12 +185,13 @@ export default function SectionEight() {
       {/* Hero photo. object-position reproduces the design's framing, which
           sits the crop left of centre. The entrance and the drift are on
           separate layers so neither has to share a transform with the other,
-          and the inner layer is 20px taller top and bottom so ±14px of drift
-          can never pull an edge into view. */}
+          and the inner layer is 56px taller top and bottom — 12px more than
+          the ±44px of drift — so an edge can never pull into view, including
+          at the extremes of the travel. */}
       <motion.div variants={heroIn} className="absolute inset-0">
         <motion.div
           style={{ y: reduce ? 0 : drift }}
-          className="absolute inset-x-0 -inset-y-5"
+          className="absolute inset-x-0 -inset-y-14"
         >
           <Image
             fill
