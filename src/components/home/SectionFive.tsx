@@ -6,6 +6,7 @@ import {
   animate,
   motion,
   useMotionValue,
+  useReducedMotion,
   useTransform,
   type MotionValue,
   type Variants,
@@ -36,36 +37,39 @@ const DATA = [
   },
 ];
 
-// Parent that staggers its children into view.
-const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
-};
-
-// Line rises out of an overflow-hidden mask.
-const rise: Variants = {
-  hidden: { y: "115%" },
-  show: { y: "0%", transition: { duration: 0.9, ease: EASE } },
-};
+/**
+ * The section shell only propagates state. It used to carry
+ * `staggerChildren: 0.1`, which put the pagination at 0.1s and the CTA at 0.2s
+ * — both landing while the cards were still arriving, since the track's own
+ * cascade runs past a second. Ordering is now stated explicitly below instead
+ * of falling out of child order.
+ */
+const shell: Variants = { hidden: {}, show: {} };
 
 // The track deals the cards in one after another.
 const trackStagger: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.12, delayChildren: 0.15 } },
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.12 } },
 };
 
-// Card lifts + fades in, then staggers its own content.
+/**
+ * Card lifts + fades in, then resolves its own content.
+ *
+ * Trimmed from y:64/scale:0.96 to bring it into line with the rest of the page
+ * — SectionFour now enters at 36px — so the two read as one motion language
+ * rather than the strip heaving in harder than the section above it.
+ */
 const cardIn: Variants = {
-  hidden: { opacity: 0, y: 64, scale: 0.96 },
+  hidden: { opacity: 0, y: 48, scale: 0.98 },
   show: {
     opacity: 1,
     y: 0,
     scale: 1,
     transition: {
-      duration: 0.9,
+      duration: 0.85,
       ease: EASE,
       staggerChildren: 0.08,
-      delayChildren: 0.2,
+      delayChildren: 0.14,
     },
   },
 };
@@ -75,16 +79,138 @@ const contentUp: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
 };
 
-// Slow zoom-out on reveal, cropped by the card's overflow-hidden frame.
+// The price sits on the photo, so it rises a shorter distance than the copy
+// below the frame — it reads as settling onto the image rather than arriving.
+const priceIn: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } },
+};
+
+// Slow zoom-out on reveal, cropped by the card's overflow-hidden frame. 1.22
+// was a stronger push than anything else on the page; 1.14 still reads as a
+// settle without the photo visibly rushing backwards.
 const kenBurns: Variants = {
-  hidden: { scale: 1.22 },
+  hidden: { scale: 1.14 },
   show: { scale: 1, transition: { duration: 1.3, ease: EASE } },
+};
+
+// Pagination and CTA land after the strip. The delays are absolute rather than
+// stagger-derived so the order holds regardless of how long the cards take.
+const paginationIn: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: EASE, delay: 0.55 },
+  },
+};
+
+const ctaIn: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: EASE, delay: 0.72 },
+  },
 };
 
 const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
 type Item = (typeof DATA)[number];
+
+/**
+ * One pagination mark.
+ *
+ * Activeness is derived from the track position rather than the committed
+ * index, so the mark tracks the drag continuously instead of flipping the
+ * instant you cross the midpoint between two snaps. On release it rides the
+ * same snap spring the cards do, so indicator and strip settle together.
+ *
+ * The normalisation is by the gap to whichever neighbour the track is heading
+ * toward, not by the card pitch. That distinction matters at the end of the
+ * strip: the last snap is clamped short of a full pitch, so dividing by `step`
+ * would leave the second-to-last mark showing ~22% yellow while the last one
+ * is fully lit.
+ */
+function Dot({
+  i,
+  x,
+  snaps,
+  step,
+  isCurrent,
+  reduce,
+  onSelect,
+}: {
+  i: number;
+  x: MotionValue<number>;
+  snaps: number[];
+  step: number;
+  isCurrent: boolean;
+  reduce: boolean;
+  onSelect: () => void;
+}) {
+  // A snap that duplicates an earlier one is unreachable: the track clamps at
+  // the end, so several marks can share a resting position and would otherwise
+  // all light at once. `nearest()` breaks those ties by returning the first
+  // index, so this mirrors it — without the guard, a viewport wide enough that
+  // nothing scrolls collapses every snap to 0 and lights all three.
+  const reachable = snaps.indexOf(snaps[i]) === i;
+
+  const proximity = useTransform(x, (v) => {
+    if (!step || !snaps.length) return i === 0 ? 1 : 0;
+    if (!reachable) return 0;
+    const d = v - snaps[i];
+    if (d === 0) return 1;
+    const neighbour = d > 0 ? snaps[i - 1] : snaps[i + 1];
+    const gap =
+      neighbour === undefined ? step : Math.abs(neighbour - snaps[i]) || step;
+    return clamp(1 - Math.abs(d) / gap, 0, 1);
+  });
+
+  // Reduced motion keeps the mark legible but drops the travel — it reads as a
+  // plain swap rather than a rise.
+  const dotOpacity = useTransform(proximity, (p) =>
+    reduce ? (p > 0.5 ? 0 : 1) : 1 - p,
+  );
+  const ringOpacity = useTransform(proximity, (p) =>
+    reduce ? (p > 0.5 ? 1 : 0) : p,
+  );
+  const ringScale = useTransform(proximity, (p) =>
+    reduce ? 1 : 0.65 + 0.35 * p,
+  );
+  const ringY = useTransform(proximity, (p) => (reduce ? 0 : 4 * (1 - p)));
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onSelect}
+      whileTap={reduce ? undefined : { scale: 0.88 }}
+      transition={{ duration: 0.18, ease: EASE }}
+      // aria-current stays on the committed index so assistive tech always
+      // reports exactly one current item, whatever the marks are mid-drag.
+      aria-current={isCurrent}
+      aria-label={`Go to route ${i + 1}`}
+      // before: pushes the hit area out to 28px without touching layout, so the
+      // 8px dot keeps its spacing but stays tappable.
+      className="relative grid h-3 w-3 place-items-center rounded-full before:absolute before:-inset-2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2"
+    >
+      {/* Idle dot — fades out as the ring takes its place, so the ring's centre
+          can stay transparent instead of being painted over with the section's
+          background colour. */}
+      <motion.span
+        style={{ opacity: dotOpacity }}
+        className="block h-2 w-2 rounded-full bg-[#E5E5E5]"
+      />
+      {/* Active — a hollow ring, per the design. 2.5px of the 8px leaves a 3px
+          centre, matching the design's ~38% hole. */}
+      <motion.span
+        style={{ opacity: ringOpacity, scale: ringScale, y: ringY }}
+        className="absolute h-2 w-2 rounded-full border-[2.5px] border-brand-yellow"
+      />
+    </motion.button>
+  );
+}
 
 /**
  * A single route card. The photo drifts against the drag, so the strip reads as
@@ -113,7 +239,7 @@ function Card({
   return (
     <motion.article
       variants={cardIn}
-      className="w-[78%] max-w-[313px] shrink-0"
+      className="w-[81%] max-w-[313px] shrink-0"
     >
       {/* Photo — masked frame, ken-burns reveal, drag parallax */}
       <div className="relative aspect-[313/198] overflow-hidden bg-neutral-200">
@@ -131,6 +257,23 @@ function Card({
               className="select-none object-cover"
             />
           </motion.div>
+        </motion.div>
+
+        {/* Scrim — these photos run bright in the lower right (sky, glass), so
+            the price needs something under it. Sits outside the parallax layer
+            so it stays pinned to the frame while the photo drifts. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 from-0% to-transparent to-45%"
+        />
+
+        {/* Price — bottom-right of the frame */}
+        <motion.div
+          variants={priceIn}
+          className="absolute bottom-3 right-[13px] flex items-baseline gap-1 font-sans text-base leading-[130%]"
+        >
+          <span className="font-normal text-white">from</span>
+          <span className="font-semibold text-brand-yellow">$389</span>
         </motion.div>
       </div>
 
@@ -160,6 +303,7 @@ function Card({
 export default function SectionFive() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
 
   const x = useMotionValue(0);
   const [index, setIndex] = useState(0);
@@ -234,29 +378,38 @@ export default function SectionFive() {
 
   const goTo = useCallback(
     (i: number) => {
-      animate(x, snaps[clamp(i, 0, snaps.length - 1)], {
+      const target = snaps[clamp(i, 0, snaps.length - 1)];
+      // Reduced motion jumps rather than glides. Dragging stays untouched — it
+      // is direct manipulation, not an animation the user didn't ask for.
+      if (reduce) {
+        x.set(target);
+        return;
+      }
+      // `animate` on a MotionValue stops whatever was already running on it, so
+      // rapid clicks retarget instead of stacking competing animations.
+      animate(x, target, {
         type: "spring",
         stiffness: 260,
         damping: 34,
         mass: 0.9,
       });
     },
-    [x, snaps],
+    [x, snaps, reduce],
   );
 
   const canDrag = maxDrag > 0;
 
   return (
-    <section className="bg-white pb-[68px]">
+    <section className="bg-white mt-10 pb-[68px]">
       <motion.div
-        variants={stagger}
-        initial="hidden"
+        variants={shell}
+        initial={reduce ? "show" : "hidden"}
         whileInView="show"
         viewport={{ once: true, amount: 0.25 }}
         className="mx-auto max-w-md"
       >
         {/* Carousel — drag to scrub, snaps to the nearest card on release */}
-        <div ref={viewportRef} className="mt-10 overflow-hidden">
+        <div ref={viewportRef} className="overflow-hidden">
           <motion.div
             ref={trackRef}
             variants={trackStagger}
@@ -279,47 +432,48 @@ export default function SectionFive() {
           </motion.div>
         </div>
 
-        {/* Pagination — the active dot fades up in yellow */}
+        {/* Pagination — the active dot rises and fades up in yellow */}
         <motion.div
-          variants={contentUp}
-          className="mt-4 flex justify-center gap-2.5"
+          variants={paginationIn}
+          className="mt-5 flex justify-center gap-2.5"
         >
           {DATA.map((_, i) => (
-            <button
+            <Dot
               key={i}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-current={i === index}
-              aria-label={`Go to route ${i + 1}`}
-              className="relative grid h-3 w-3 place-items-center"
-            >
-              {/* Idle dot — fades out as the ring takes its place, so the
-                  ring's centre can stay transparent instead of being painted
-                  over with the section's background colour. */}
-              <motion.span
-                animate={{ opacity: i === index ? 0 : 1 }}
-                transition={{ duration: 0.35, ease: EASE }}
-                className="block h-2 w-2 rounded-full bg-[#E5E5E5]"
-              />
-              {/* Active — a hollow ring, per the design. 2.5px of the 8px
-                  leaves a 3px centre, matching the design's ~38% hole. */}
-              <motion.span
-                animate={{
-                  opacity: i === index ? 1 : 0,
-                  scale: i === index ? 1 : 0.5,
-                }}
-                transition={{ duration: 0.35, ease: EASE }}
-                className="absolute h-2 w-2 rounded-full border-[2.5px] border-brand-yellow"
-              />
-            </button>
+              i={i}
+              x={x}
+              snaps={snaps}
+              step={step}
+              isCurrent={i === index}
+              reduce={!!reduce}
+              onSelect={() => goTo(i)}
+            />
           ))}
         </motion.div>
-        <div className="flex justify-center mt-6">
-          <button className="flex items-center gap-1 text-navy font-sans text-base font-semibold leading-[160%]">
+
+        {/* Explore all Trips — lands last in the sequence */}
+        <motion.div variants={ctaIn} className="flex justify-center mt-6">
+          <motion.button
+            type="button"
+            whileHover={reduce ? undefined : { y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="group relative flex items-center gap-1 text-navy font-sans text-base font-semibold leading-[160%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
+          >
             <span>Explore all Trips</span>{" "}
-            <RiArrowRightLine className="h-6 text-navy" />
-          </button>
-        </div>
+            {/* Hover motion is CSS and gated to devices that actually hover, so
+                it cannot stick on a touch screen after a tap. */}
+            <RiArrowRightLine
+              aria-hidden
+              className="h-6 text-navy transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
+            />
+            {/* Same underline idiom SectionSix uses, for continuity. */}
+            <span
+              aria-hidden
+              className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100"
+            />
+          </motion.button>
+        </motion.div>
       </motion.div>
     </section>
   );
