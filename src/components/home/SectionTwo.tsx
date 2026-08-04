@@ -1,270 +1,462 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useId, useRef } from "react";
 import {
+  cubicBezier,
   motion,
-  useInView,
+  useMotionTemplate,
+  useMotionValue,
+  useReducedMotion,
   useScroll,
+  useSpring,
   useTransform,
-  type Variants,
+  type MotionValue,
 } from "framer-motion";
 
-// Premium ease-out — smooth, no bounce.
-const EASE = [0.22, 1, 0.36, 1] as const;
+const STACK = [
+  "See the landmarks and<br />the places guidebooks skip.",
+  "Plan your trip in advance<br />or make it up as you go.",
+  "Skip the travel chaos and<br />enjoy the view from the train. ",
+];
 
-const HEADING = ["Excepteur sint", "cupidatat", "non proident"];
-const VENIAM = "Veniam".split("");
+/* ------------------------------------------------------------------ *
+ * Motion system
+ * ------------------------------------------------------------------ */
 
-// Parent that staggers its children into view.
-const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
-};
+// The page's two premium ease-outs. EASE_TEXT is Banner's curve, so the copy
+// here reads as a continuation of the hero's momentum rather than a new idea.
+const EASE = cubicBezier(0.22, 1, 0.36, 1);
+const EASE_TEXT = cubicBezier(0.16, 1, 0.3, 1);
 
-// A line/letter that rises out of an overflow-hidden mask.
-const rise: Variants = {
-  hidden: { y: "115%" },
-  show: { y: "0%", transition: { duration: 0.8, ease: EASE } },
-};
+/**
+ * Light touch on purpose. Lenis already smooths the wheel, so a heavy spring
+ * here just smooths a smooth signal and the result reads as lag. This settles
+ * in ~100ms and still can't overshoot (damping ratio 1.15).
+ *
+ * restDelta matters more than it looks: the default 0.01 is a full 1% of a
+ * 0 → 1 progress range, so the spring gives up short of its target and snaps
+ * the last step. At 0.0001 it lands cleanly.
+ */
+const SPRING = {
+  stiffness: 120,
+  damping: 16,
+  mass: 0.4,
+  restDelta: 0.0001,
+} as const;
 
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 26 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
-};
+type Range = readonly [number, number];
 
-// Character flick-in for the monospace tagline.
-const flick: Variants = {
-  hidden: { opacity: 0, y: 6 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-};
+/**
+ * Every element is timed against its own pass through the viewport rather than
+ * a single section-wide progress. A shared timeline sounds tidier, but this
+ * section is taller than the screen — anything low in it reached its cue while
+ * still below the fold, so the copy and the lower route were already finished
+ * by the time they appeared. These offsets are the fix.
+ */
+type ScrollOffset = NonNullable<Parameters<typeof useScroll>[0]>["offset"];
 
-// Photo reveals (opacity/scale — combine cleanly with the parallax on the
-// same node; the Ken Burns child inherits the reveal via variant propagation).
-const photoFade: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.8, ease: EASE } },
-};
-const photoPop: Variants = {
-  hidden: { opacity: 0, scale: 1.12 },
-  show: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: EASE } },
-};
-const kenBurns: Variants = {
-  hidden: { scale: 1.25 },
-  show: { scale: 1, transition: { duration: 1.4, ease: EASE } },
-};
+// Copy reveals as its top travels from just under the fold to comfortably read.
+const TEXT_OFFSET: ScrollOffset = ["start 0.88", "start 0.52"];
+// A route starts as it noses in and completes with its tail above centre, so
+// the whole draw is on screen. The two frames sit 35px apart, so the lower
+// route opens while the upper is still finishing — they read as one line.
+const ROUTE_OFFSET: ScrollOffset = ["start 0.92", "end 0.55"];
 
-export default function SectionTwo() {
+/**
+ * A route's internal timeline, in that route's own 0 → 1.
+ *
+ * Grey leads, yellow chases, and the tail is left quiet so the line settles
+ * before the next thing asks for attention.
+ */
+const GREY: Range = [0.0, 0.72];
+const YELLOW: Range = [0.13, 0.95];
+
+/**
+ * Where each station sits along its own yellow path, as a fraction of that
+ * path's length. Measured from the SVG geometry (every circle lies within 1.4
+ * user units of its route), so a stop lights up when the signal actually
+ * reaches it rather than on a hand-picked number.
+ */
+const UPPER_STOPS = [0.183, 0.595] as const;
+const LOWER_STOPS = [0.369, 0.686] as const;
+
+/** How long a station takes to bloom once the signal arrives. */
+const DWELL = 0.09;
+
+/** Maps a station's position along a path onto that path's draw window. */
+function stopWindow([from, to]: Range, at: number): Range {
+  const start = from + at * (to - from);
+  return [start, Math.min(1, start + DWELL)];
+}
+
+/**
+ * Progress of one element through the viewport, smoothed.
+ *
+ * Reduced motion pins the value at 1 rather than branching the render, so every
+ * transform downstream resolves to its finished state through the same path.
+ */
+function useViewportProgress(
+  ref: React.RefObject<HTMLElement | null>,
+  offset: ScrollOffset,
+) {
+  const { scrollYProgress } = useScroll({ target: ref, offset });
+  const smoothed = useSpring(scrollYProgress, SPRING);
+  const settled = useMotionValue(1);
+  const reduce = useReducedMotion();
+  return reduce ? settled : smoothed;
+}
+
+/**
+ * Draws a stroke on as progress moves through `range`.
+ *
+ * Deliberately linear: an ease-out here would make the line lurch away and then
+ * crawl, which reads as uneven when it is pinned to the wheel. Linear tracks
+ * the scroll 1:1 and lets the spring do the smoothing.
+ *
+ * The opacity ramp is the subtle part — these paths use round linecaps, so a
+ * zero-length dash still paints a visible dot. Holding the stroke transparent
+ * until the draw actually begins keeps that dot off the screen.
+ */
+function useDraw(progress: MotionValue<number>, [from, to]: Range) {
+  const pathLength = useTransform(progress, [from, to], [0, 1]);
+  const opacity = useTransform(progress, [from, from + 0.01], [0, 1]);
+  return { pathLength, opacity };
+}
+
+/**
+ * Copy that rises and resolves out of a light blur as it comes into view.
+ *
+ * The ref sits on an outer wrapper and the transform on an inner one. Measuring
+ * the same element we translate would feed a 20px shift back into its own
+ * scroll offset; splitting them keeps the reveal from chasing its own tail.
+ */
+function Reveal({
+  className,
+  html,
+  blur = 6,
+  children,
+}: {
+  className: string;
+  html?: string;
+  blur?: number;
+  children?: React.ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
+  const progress = useViewportProgress(ref, TEXT_OFFSET);
 
-  // Scroll-linked parallax on the big word for a layered, alive composition.
-  // (Kept off the photos: a continuously-animating transform on/above an
-  // element suppresses its own whileInView IntersectionObserver.)
-  const veniamX = useTransform(scrollYProgress, [0, 1], ["-4%", "4%"]);
-
-  // Autoplay the clip only while it's on screen; pause it otherwise.
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const videoWrapRef = useRef<HTMLDivElement>(null);
-  const videoInView = useInView(videoWrapRef, { amount: 0.4 });
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (videoInView) {
-      const p = v.play();
-      if (p) p.catch(() => {});
-    } else {
-      v.pause();
-    }
-  }, [videoInView]);
-
-  // Bike clip — same viewport play/pause behaviour.
-  const bikeVideoRef = useRef<HTMLVideoElement>(null);
-  const bikeWrapRef = useRef<HTMLDivElement>(null);
-  const bikeInView = useInView(bikeWrapRef, { amount: 0.4 });
-
-  useEffect(() => {
-    const v = bikeVideoRef.current;
-    if (!v) return;
-    if (bikeInView) {
-      const p = v.play();
-      if (p) p.catch(() => {});
-    } else {
-      v.pause();
-    }
-  }, [bikeInView]);
+  const opacity = useTransform(progress, [0, 1], [0, 1], { ease: EASE_TEXT });
+  const y = useTransform(progress, [0, 1], [20, 0], { ease: EASE_TEXT });
+  const blurPx = useTransform(progress, [0, 1], [blur, 0], { ease: EASE_TEXT });
+  const filter = useMotionTemplate`blur(${blurPx}px)`;
 
   return (
-    <section
-      ref={ref}
-      className="overflow-hidden bg-white px-8 pt-[125px] pb-[200px]"
-    >
-      <div className="mx-auto max-w-xl">
-        {/* Heading — each line rises out of its own mask */}
-        <motion.h2
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-          className="text-center font-molitor text-hero font-bold leading-[54px] tracking-27px text-navy-deep"
-        >
-          {HEADING.map((line) => (
-            <span key={line} className="-mb-[11px] block overflow-hidden">
-              <motion.span variants={rise} className="block">
-                {line}
-              </motion.span>
-            </span>
-          ))}
-        </motion.h2>
-
-        {/* Body — two columns, staggered fade-up */}
+    <div ref={ref} className={className}>
+      {html ? (
         <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.6 }}
-          className="mt-8 grid grid-cols-2 gap-7 font-neuehaas font-medium text-black"
-        >
-          <div className="flex flex-col gap-10">
-            <motion.p
-              variants={fadeUp}
-              className="text-sm leading-[110%] tracking-lead"
-            >
-              Lorem ipsum dolor sit amet consectetur. unt in culpa qui officia.
-            </motion.p>
-            <motion.p
-              variants={fadeUp}
-              className="text-sm leading-[110%] tracking-lead"
-            >
-              sed quia consequuntur magni dolores eos qui ratione voluptatem.
-            </motion.p>
-          </div>
-          <div className="flex flex-col gap-10">
-            <motion.p
-              variants={fadeUp}
-              className="text-sm leading-[110%] tracking-lead"
-            >
-              Lorem ipsum dolor sit amet consectetur. unt in culpa qui officia.
-            </motion.p>
-            <motion.p
-              variants={fadeUp}
-              className="text-sm leading-[110%] tracking-lead"
-            >
-              Sed quia consequuntur magni dolores eos qui ratione voluptatem.
-            </motion.p>
-          </div>
-        </motion.div>
+          style={{ opacity, y, filter }}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <motion.div style={{ opacity, y, filter }}>{children}</motion.div>
+      )}
+    </div>
+  );
+}
 
-        {/* Train clip — fixed ~194px wide; plays only while on screen. Reveals
-            with a fade + slow Ken Burns zoom, and lifts a touch on hover. */}
-        <div className="mt-[100px] mr-8 flex justify-end">
-          {/* shadow-xl shadow-black/20 */}
-          <motion.div
-            ref={videoWrapRef}
-            initial="hidden"
-            whileInView="show"
-            variants={photoFade}
-            viewport={{ once: true, amount: 0.2 }}
-            whileHover={{ scale: 1.05, y: -3 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-[194px] max-w-full overflow-hidden"
-          >
-            <motion.div variants={kenBurns}>
-              <video
-                ref={videoRef}
-                muted
-                loop
-                playsInline
-                preload="auto"
-                aria-label="Friends together on a train"
-                className="aspect-[194/109] w-full object-cover"
-              >
-                <source src="/images/section-2-1.mp4" type="video/mp4" />
-              </video>
-            </motion.div>
-          </motion.div>
+/**
+ * A station marker on the route.
+ *
+ * The `<circle>` keeps its own rotate() attribute untouched — that rotation
+ * orients its userSpaceOnUse gradient, so a CSS transform here would quietly
+ * restyle it. Scaling lives on the wrapping group instead, which Framer renders
+ * with transform-box: fill-box and a 50% origin, i.e. the circle's own centre.
+ */
+function Station({
+  cx,
+  cy,
+  r,
+  rotate,
+  gradient,
+  progress,
+  range,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  rotate: number;
+  gradient: string;
+  progress: MotionValue<number>;
+  range: Range;
+}) {
+  const [from, to] = range;
+  const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
+  const scale = useTransform(progress, [from, to], [0.5, 1], { ease: EASE });
+
+  return (
+    <motion.g style={{ opacity, scale }}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        transform={`rotate(${rotate} ${cx} ${cy})`}
+        fill="white"
+        stroke={`url(#${gradient})`}
+        strokeWidth="2"
+      />
+    </motion.g>
+  );
+}
+
+/** The gradient every station is stroked with, top #FEBC22 → bottom #FFD400. */
+function StationGradient({
+  id,
+  cx,
+  cy,
+  r,
+}: {
+  id: string;
+  cx: number;
+  cy: number;
+  r: number;
+}) {
+  return (
+    <linearGradient
+      id={id}
+      x1={cx}
+      y1={cy - r - 1}
+      x2={cx}
+      y2={cy + r + 1}
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stopColor="#FEBC22" />
+      <stop offset="1" stopColor="#FFD400" />
+    </linearGradient>
+  );
+}
+
+/*
+ * Both routes were exported at the 390px design width and are drawn at their
+ * natural size, cropped by the section's edges. `xMidYMid slice` is the SVG
+ * spelling of the `object-cover` the <Image> used to do, so the framing — and
+ * the stations' circularity — is unchanged on any screen.
+ */
+const SVG_CLASS = "absolute inset-0 h-full w-full";
+const SVG_FIT = "xMidYMid slice";
+
+/**
+ * Upper route — enters at the subheading and sweeps down to the right.
+ *
+ * Note the yellow path is not the grey one: Figma exports it truncated at
+ * 331,258, so it covers only 81% of grey's length. Yellow therefore trails
+ * permanently, by geometry as well as by timing. Preserved verbatim.
+ */
+function UpperRoute({ progress }: { progress: MotionValue<number> }) {
+  const uid = useId().replace(/:/g, "");
+  const a = `${uid}-a`;
+  const b = `${uid}-b`;
+
+  const grey = useDraw(progress, GREY);
+  const yellow = useDraw(progress, YELLOW);
+
+  return (
+    <svg
+      viewBox="0 0 390 432"
+      fill="none"
+      preserveAspectRatio={SVG_FIT}
+      aria-hidden="true"
+      focusable="false"
+      className={SVG_CLASS}
+    >
+      <motion.path
+        d="M-2.99825 121.684L7.65755 129.585L9.89719 127.666L35.5405 114.981L76.0936 125.134L154.454 180.312L224.941 208.17L231.846 205.349L272.092 208.798L274.014 205.602L278.68 204.7L281.806 207.441L292.788 211.192L325.734 259.608L331.23 258.769L348.062 278.411L354.258 279.295L357.319 282.866L384.816 304.982L404.487 309.804"
+        stroke="#AFAFAF"
+        strokeLinecap="round"
+        style={grey}
+      />
+      <motion.path
+        d="M-2.9974 121.684L7.65839 129.586L9.89803 127.667L35.5413 114.982L76.0944 125.135L154.455 180.312L224.942 208.171L231.847 205.35L272.093 208.798L274.015 205.603L278.681 204.701L281.807 207.442L292.789 211.192L325.735 259.609L331.231 258.77"
+        stroke="#FFD400"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={yellow}
+      />
+
+      {/* In route order — the signal reaches 62,122 well before 203,199. */}
+      <Station
+        cx={62.0521}
+        cy={122.05}
+        r={4}
+        rotate={-130.595}
+        gradient={b}
+        progress={progress}
+        range={stopWindow(YELLOW, UPPER_STOPS[0])}
+      />
+      <Station
+        cx={203.079}
+        cy={199.257}
+        r={4}
+        rotate={-130.595}
+        gradient={a}
+        progress={progress}
+        range={stopWindow(YELLOW, UPPER_STOPS[1])}
+      />
+
+      <defs>
+        <StationGradient id={a} cx={203.079} cy={199.257} r={4} />
+        <StationGradient id={b} cx={62.0521} cy={122.05} r={4} />
+      </defs>
+    </svg>
+  );
+}
+
+/**
+ * Lower route — rises from the bottom-left and exits right. Here grey and
+ * yellow share identical path data, so the lead comes purely from the timeline.
+ */
+function LowerRoute({ progress }: { progress: MotionValue<number> }) {
+  const uid = useId().replace(/:/g, "");
+  const a = `${uid}-a`;
+  const b = `${uid}-b`;
+
+  const grey = useDraw(progress, GREY);
+  const yellow = useDraw(progress, YELLOW);
+
+  const D =
+    "M-6.90919 283.029L4.53728 271.849L24.4306 250.882L35.9117 241.674L41.9109 238.888L42.4278 233.877L71.8024 201.747L79.629 199.703L93.9718 189.862L111.074 199.414L136.451 206.615L160.586 203.359L186.582 185.521L235.954 138.34L267.777 125.152L307.668 97.7812L330.836 65.2539L341.732 65.7606L381.622 38.3894L392.828 39.3483";
+
+  return (
+    <svg
+      viewBox="0 0 390 253"
+      fill="none"
+      preserveAspectRatio={SVG_FIT}
+      aria-hidden="true"
+      focusable="false"
+      className={SVG_CLASS}
+    >
+      <motion.path
+        d={D}
+        stroke="#AFAFAF"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={grey}
+      />
+      <motion.path
+        d={D}
+        stroke="#FFD400"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={yellow}
+      />
+
+      <Station
+        cx={136.47}
+        cy={205.164}
+        r={4.52491}
+        rotate={-46.2817}
+        gradient={a}
+        progress={progress}
+        range={stopWindow(YELLOW, LOWER_STOPS[0])}
+      />
+      <Station
+        cx={268.319}
+        cy={124.841}
+        r={4.52491}
+        rotate={-46.2817}
+        gradient={b}
+        progress={progress}
+        range={stopWindow(YELLOW, LOWER_STOPS[1])}
+      />
+
+      <defs>
+        <StationGradient id={a} cx={136.47} cy={205.164} r={4.52491} />
+        <StationGradient id={b} cx={268.319} cy={124.841} r={4.52491} />
+      </defs>
+    </svg>
+  );
+}
+
+export default function SectionTwo() {
+  // Each route is timed off its own frame, so the draw always plays while the
+  // line is on screen. The refs go on the positioning boxes, which never carry
+  // a transform — only the paths inside them animate — so measuring them stays
+  // stable while the route draws.
+  const upperRef = useRef<HTMLDivElement>(null);
+  const lowerRef = useRef<HTMLDivElement>(null);
+  const upperProgress = useViewportProgress(upperRef, ROUTE_OFFSET);
+  const lowerProgress = useViewportProgress(lowerRef, ROUTE_OFFSET);
+
+  return (
+    // `relative z-0` opens a stacking context here so the lines' negative
+    // z-index resolves inside the section: they paint above its white
+    // background but behind all of the copy. (`isolate` alone is not enough —
+    // the background still wins.)
+    <div className="relative z-0 bg-white px-6">
+      <Reveal className="pt-[120px] text-navy-1 text-center font-sans text-5xl font-semibold tracking-1px leading-[105%]">
+        One continent.
+        <br />
+        All yours to
+        <br />
+        figure out.
+      </Reveal>
+      <Reveal
+        blur={5}
+        className="text-center text-navy-1 font-sans mt-2.5 text-base leading-[126%] tracking-[0.16px]"
+      >
+        Get to know Europe on a deeper
+        <br />
+        level when you travel by rail.
+      </Reveal>
+      {/* gap-[60px] */}
+      <div className="relative mt-[100px] grid grid-cols-1 gap-20">
+        {/* Upper line — enters at the subheading and sweeps down to the right,
+            passing above the first two copy blocks. Anchored to the copy stack
+            (not the section top) so it holds if the headline rewraps; -230px is
+            the Figma gap between the line's frame and the first block. */}
+        <div
+          ref={upperRef}
+          aria-hidden
+          className="pointer-events-none absolute -left-6 -right-6 -top-[230px] -z-10 h-[432px]"
+        >
+          <div className="relative mx-auto h-full w-full max-w-md">
+            <UpperRoute progress={upperProgress} />
+          </div>
         </div>
 
-        {/* Veniam block — big word, overlapping bike photo, mono tagline */}
-        {/* VENIAM — each letter rises out of a mask, whole word parallaxes */}
-        <div className="relative mt-4">
-          <motion.h3
-            style={{ x: veniamX }}
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.5 }}
-            className="relative z-10 flex font-molitor text-[105px] font-bold leading-[102px] tracking-85px text-brand-yellow-1"
-          >
-            {VENIAM.map((ch, i) => (
-              <span key={i} className="inline-block overflow-hidden">
-                <motion.span variants={rise} className="inline-block">
-                  {ch}
-                </motion.span>
-              </span>
-            ))}
-          </motion.h3>
+        {/* The statements sit along the route, so timing each to its own
+            entrance reproduces the route order without hard-coding it. */}
+        {STACK.map((item, index) => {
+          let align = "justify-self-start";
+          if (index === 1) {
+            align = "justify-self-center";
+          }
+          if (index === 2) {
+            align = "justify-self-end";
+          }
+          return (
+            <Reveal
+              key={index}
+              html={item}
+              blur={4}
+              className={`text-navy-1 font-sans text-base font-normal tracking-16 leading-[125%] ${align}`}
+            />
+          );
+        })}
+      </div>
 
-          {/* SINCE 1972 — monospace, spread wide, chars flick in */}
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.8 }}
-            variants={{
-              hidden: {},
-              show: { transition: { staggerChildren: 0.04 } },
-            }}
-            className="relative z-10 mt-4 flex justify-between gap-5 pl-4 font-departure text-base tracking-144% text-navy-deep"
-          >
-            <span className="flex z-10">
-              {"SINCE".split("").map((c, i) => (
-                <motion.span
-                  key={i}
-                  variants={flick}
-                  className={`${i >= 1 && i <= 4 ? "text-white" : ""}`}
-                >
-                  {c}
-                </motion.span>
-              ))}
-            </span>
-            <span className="flex z-10">
-              {"1972".split("").map((c, i) => (
-                <motion.span key={i} variants={flick}>
-                  {c}
-                </motion.span>
-              ))}
-            </span>
-          </motion.div>
-
-          {/* Bike clip — overlaps the word; plays only while on screen,
-              pops in on reveal and lifts a touch on hover. */}
-          <motion.div
-            ref={bikeWrapRef}
-            variants={photoPop}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            whileHover={{ scale: 1.04 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="absolute left-[34px] top-[64px] z-0 w-[40%] overflow-hidden"
-          >
-            <video
-              ref={bikeVideoRef}
-              muted
-              loop
-              playsInline
-              preload="auto"
-              aria-label="A traveller with a bike at golden hour"
-              className="aspect-[140/170] w-full object-cover"
-            >
-              <source src="/images/section-2-2.mp4" type="video/mp4" />
-            </video>
-          </motion.div>
+      {/* Lower line — rises from the bottom-left to just under the last copy
+          block and exits right. Kept in flow so it reserves the 210px the Figma
+          leaves below the copy for it to sweep through, and so its bottom edge
+          stays pinned to the section's, which is how the asset is cropped.
+          -43px is the overlap its frame has with that block in the design. */}
+      <div
+        ref={lowerRef}
+        aria-hidden
+        className="pointer-events-none relative -z-10 -mx-6 -mt-[43px] h-[253px]"
+      >
+        <div className="relative mx-auto h-full w-full max-w-md">
+          <LowerRoute progress={lowerProgress} />
         </div>
       </div>
-    </section>
+    </div>
   );
 }

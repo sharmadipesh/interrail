@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
+import { TbWorld } from "react-icons/tb";
 import { LuSearch, LuBookmark, LuUser, LuShoppingBag } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Logo2 from "./Logo2";
@@ -37,10 +38,11 @@ const itemVariants: Variants = {
 };
 
 const ACTIONS: { Icon: IconType; label: string }[] = [
+  { Icon: TbWorld, label: "Currancy" },
   { Icon: LuSearch, label: "Search" },
   // { Icon: LuBookmark, label: "Saved" },
   { Icon: LuUser, label: "Account" },
-  { Icon: LuShoppingBag, label: "Bag" },
+  // { Icon: LuShoppingBag, label: "Bag" },
 ];
 
 /** Circular icon button with a hover pill, scale, and tap feedback. */
@@ -88,22 +90,34 @@ function Hamburger() {
   );
 }
 
-export default function Navbar({ hidden = false }: { hidden?: boolean }) {
+export default function Navbar({
+  hidden = false,
+  /**
+   * Held back while the intro covers the page, so the bar drops in during the
+   * handoff rather than finishing behind the curtain. Defaults to true, so
+   * anywhere that doesn't orchestrate an intro behaves exactly as before.
+   */
+  ready = true,
+}: {
+  hidden?: boolean;
+  ready?: boolean;
+}) {
   return (
     <motion.header
       variants={barVariants}
       initial="hidden"
-      // Drops in on mount ("hidden" → "visible"); thereafter `hidden` toggles
-      // the scroll slide. Children (icons) don't define "scrolledHidden", so
-      // they hold their revealed state instead of re-staggering on each show.
-      animate={hidden ? "scrolledHidden" : "visible"}
+      // Drops in once `ready` ("hidden" → "visible"); thereafter `hidden`
+      // toggles the scroll slide. Children (icons) don't define
+      // "scrolledHidden", so they hold their revealed state instead of
+      // re-staggering on each show.
+      animate={hidden ? "scrolledHidden" : ready ? "visible" : "hidden"}
       style={{ color: NAVY }}
       // Floating overlay: out of flow (fixed) so the banner stays a true 100vh
       // hero, with breathing room on the top/left/right.
-      className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6 sm:pt-5"
+      className="fixed inset-x-0 top-0 z-50 px-5 pt-4 sm:px-6 sm:pt-5"
     >
       {/*  */}
-      <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between  border border-white/60 bg-white px-3 shadow-xl shadow-black/10 backdrop-blur-xl sm:h-16 sm:px-5">
+      <nav className="mx-auto flex h-[52px] max-w-7xl items-center justify-between  border border-white/60 bg-white px-3 shadow-xl shadow-black/10 backdrop-blur-xl sm:px-5">
         {/* Left: menu + logo */}
         <div className="flex items-center gap-1 sm:gap-2">
           <Hamburger />
@@ -115,7 +129,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             whileTap={{ scale: 0.97 }}
             className="-ml-1.5 inline-flex sm:-ml-2"
           >
-            <Logo2 className="h-7 w-auto sm:h-9" />
+            <Logo2 className="h-[26px] w-auto sm:h-9" />
           </motion.a>
         </div>
 
