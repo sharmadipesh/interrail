@@ -2,7 +2,7 @@
 
 import { motion, type Variants } from "framer-motion";
 import { TbWorld } from "react-icons/tb";
-import { LuSearch, LuBookmark, LuUser, LuShoppingBag } from "react-icons/lu";
+import { LuSearch, LuUser } from "react-icons/lu";
 import type { IconType } from "react-icons";
 import Logo2 from "./Logo2";
 
