@@ -85,8 +85,7 @@ const ENTRY_VW = 78;
 const NO_PIN_STAGE =
   "motion-reduce:static motion-reduce:block motion-reduce:min-h-0 motion-reduce:pt-7 motion-reduce:pb-[158px] " +
   "[@media(max-height:600px)]:static [@media(max-height:600px)]:block [@media(max-height:600px)]:min-h-0 [@media(max-height:600px)]:pt-7 [@media(max-height:600px)]:pb-[158px]";
-const NO_PIN_SECTION =
-  "motion-reduce:h-auto [@media(max-height:600px)]:h-auto";
+const NO_PIN_SECTION = "motion-reduce:h-auto [@media(max-height:600px)]:h-auto";
 
 /** Rises and resolves out of a light blur. Holds once revealed. */
 function useReveal(
@@ -118,7 +117,11 @@ function useSlideIn(
 ): MotionStyle {
   const vw = useTransform(progress, [from, to], [fromVw, 0], { ease: EASE });
   const x = useMotionTemplate`${vw}vw`;
-  const opacity = useTransform(progress, [from, from + (to - from) * 0.34], [0, 1]);
+  const opacity = useTransform(
+    progress,
+    [from, from + (to - from) * 0.34],
+    [0, 1],
+  );
   const scale = useTransform(progress, [from, to], [1.04, 1], { ease: EASE });
   return { x, opacity, scale };
 }
@@ -287,7 +290,7 @@ export default function SectionThree() {
               run 11.2px off-centre against the design. */}
           <motion.p
             style={tagline}
-            className="relative mt-6 pl-[22.4px] text-center font-departure text-base leading-[33.45px] tracking-[22.4px] text-navy-1"
+            className="relative mt-6 pl-[22.4px] text-center font-departure text-base leading-[33.45px] tracking-[21px] text-navy-1"
           >
             {SINCE.split("").map((char, i) => (
               <span

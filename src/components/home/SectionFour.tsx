@@ -238,7 +238,7 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
               View This Itinerary
             </motion.button>
             <div className="flex items-center text-base font-normal leading-[130%] font-sans text-brand-yellow gap-1">
-              <span>from</span>
+              <span className="text-normal text-white">from</span>
               <span className="font-semibold">$389</span>
             </div>
           </div>
