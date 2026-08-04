@@ -90,15 +90,27 @@ function Hamburger() {
   );
 }
 
-export default function Navbar({ hidden = false }: { hidden?: boolean }) {
+export default function Navbar({
+  hidden = false,
+  /**
+   * Held back while the intro covers the page, so the bar drops in during the
+   * handoff rather than finishing behind the curtain. Defaults to true, so
+   * anywhere that doesn't orchestrate an intro behaves exactly as before.
+   */
+  ready = true,
+}: {
+  hidden?: boolean;
+  ready?: boolean;
+}) {
   return (
     <motion.header
       variants={barVariants}
       initial="hidden"
-      // Drops in on mount ("hidden" → "visible"); thereafter `hidden` toggles
-      // the scroll slide. Children (icons) don't define "scrolledHidden", so
-      // they hold their revealed state instead of re-staggering on each show.
-      animate={hidden ? "scrolledHidden" : "visible"}
+      // Drops in once `ready` ("hidden" → "visible"); thereafter `hidden`
+      // toggles the scroll slide. Children (icons) don't define
+      // "scrolledHidden", so they hold their revealed state instead of
+      // re-staggering on each show.
+      animate={hidden ? "scrolledHidden" : ready ? "visible" : "hidden"}
       style={{ color: NAVY }}
       // Floating overlay: out of flow (fixed) so the banner stays a true 100vh
       // hero, with breathing room on the top/left/right.

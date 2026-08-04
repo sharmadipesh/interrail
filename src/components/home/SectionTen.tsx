@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import {
+  AnimatePresence,
   cubicBezier,
   motion,
   useInView,
-  useMotionTemplate,
   useMotionValue,
   useReducedMotion,
   useScroll,
@@ -111,8 +111,36 @@ const PARALLAX_SPRING = {
  */
 const GREY: Range = [0.0, 0.72];
 const YELLOW: Range = [0.13, 0.95];
-const HEADLINE: Range = [0.55, 0.85];
-const PARAGRAPH: Range = [0.68, 0.95];
+/** Where along the route's draw the stat block is allowed to appear. */
+const HEADLINE_AT = 0.55;
+
+/**
+ * The block cycles through three figures rather than stating one.
+ *
+ * Every heading is two lines, so the h2 never changes height. The bodies are
+ * not equal — measured at the design's 233px column they run 60.5 / 80.6 /
+ * 60.5px — so the copy is taken out of flow and the slot holds the height of
+ * the shortest. The tall one reaches into the 106px of air above the carousel
+ * instead of shoving it down, which is what a reserved max-height would do to
+ * the other two thirds of the time.
+ */
+const STATS = [
+  {
+    lines: ["9 Million", "Trips"],
+    body: "Nearly nine million trips taken. Even more memories made along the way.",
+  },
+  {
+    lines: ["70", "years"],
+    body: "Nearly seven decades and counting, travellers have chosen the scenic route over the stressful one.",
+  },
+  {
+    lines: ["33", "Countries"],
+    body: "Interrail is your key to Europe. You didn't come this far to miss out on it.",
+  },
+];
+
+/** Dwell per figure. Long enough to read the body twice over. */
+const STAT_INTERVAL = 4600;
 
 /**
  * Where each station sits along the yellow polyline, measured from the path
@@ -190,18 +218,32 @@ function useDraw(progress: MotionValue<number>, [from, to]: Range) {
 }
 
 /**
- * A headline line rising out of its mask.
+ * The figure rolling over inside its mask — old line up and out, new line up
+ * and in, both travelling at once.
  *
- * The offset is built through a template rather than interpolating "110%" →
- * "0%" directly: a string output range resolves to useTransform's map overload
- * and hands back an object instead of a MotionValue.
+ * They overlap rather than queueing behind `mode="wait"`, which is why the
+ * lines are taken out of flow inside the mask: two can occupy it at the same
+ * instant without stacking. Waiting would double the duration and read as a
+ * pause between figures rather than one continuous roll.
  */
-function useReveal(progress: MotionValue<number>, [from, to]: Range) {
-  const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
-  const offset = useTransform(progress, [from, to], [110, 0], { ease: EASE });
-  const y = useMotionTemplate`${offset}%`;
-  return { opacity, y };
-}
+const swapLine: Variants = {
+  enter: { y: "110%", opacity: 0 },
+  center: { y: "0%", opacity: 1 },
+  exit: { y: "-110%", opacity: 0 },
+};
+
+const swapBody: Variants = {
+  enter: { y: 14, opacity: 0, filter: "blur(4px)" },
+  center: { y: 0, opacity: 1, filter: "blur(0px)" },
+  exit: { y: -10, opacity: 0, filter: "blur(4px)" },
+};
+
+/** Reduced motion keeps the change legible but drops the travel and the blur. */
+const fadeOnly: Variants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1 },
+  exit: { opacity: 0 },
+};
 
 /**
  * A station on the route.
@@ -443,17 +485,41 @@ export default function SectionTen() {
   const settled = useMotionValue(1);
   const progress = reduce ? settled : smoothed;
 
-  const line1 = useReveal(progress, HEADLINE);
-  const line2 = useReveal(progress, [
-    HEADLINE[0] + 0.1,
-    HEADLINE[1] + 0.1,
-  ] as Range);
-  const paraOpacity = useTransform(progress, [...PARAGRAPH], [0, 1], {
-    ease: EASE,
-  });
-  const paraY = useTransform(progress, [...PARAGRAPH], [18, 0], {
-    ease: EASE,
-  });
+  /**
+   * The stat block waits for the route rather than for its own bounding box, so
+   * the first figure still rises as the yellow signal establishes — the opening
+   * stays one gesture. Once revealed the listener detaches; until then a
+   * repeated `setShown(true)` is a no-op React bails out of.
+   */
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    if (revealed) return;
+    return progress.on("change", (v) => {
+      if (v >= HEADLINE_AT) setRevealed(true);
+    });
+  }, [progress, revealed]);
+  // Reduced motion pins progress at 1, which never emits a change.
+  const shown = reduce || revealed;
+
+  const statsRef = useRef<HTMLDivElement>(null);
+  const statsInView = useInView(statsRef, { amount: 0.5 });
+  const [stat, setStat] = useState(0);
+  const [held, setHeld] = useState(false);
+
+  /**
+   * Rotates only while the block is on screen and nobody is holding it. Pausing
+   * on hover and focus is not a flourish: this is auto-updating content with no
+   * other control, and a reader part-way through the longest body needs a way
+   * to stop it moving.
+   */
+  useEffect(() => {
+    if (!shown || !statsInView || held) return;
+    const id = window.setInterval(
+      () => setStat((s) => (s + 1) % STATS.length),
+      STAT_INTERVAL,
+    );
+    return () => window.clearInterval(id);
+  }, [shown, statsInView, held]);
 
   const [active, setActive] = useState(0);
 
@@ -513,11 +579,23 @@ export default function SectionTen() {
       ref={sectionRef}
       className="relative overflow-hidden bg-white pb-8 pt-48"
     >
-      {/* Route line running in from the top-left corner */}
+      {/* Route line running in from the top-left corner.
+
+          The width tracks the viewport instead of sitting at the artwork's own
+          423.646px. Fixed, the grey tail ends 404px in — so every phone
+          narrower than that clipped the end of the line against the section's
+          overflow, and anything wider left a gap before the edge. `100% + 34px`
+          keeps the design's exact bleed (11px off the left, ~23px past the
+          right) at any width, and resolves to 423.646px at the 390px frame the
+          artwork was drawn for.
+
+          Stretching horizontally is what the asset asks for — it ships
+          `preserveAspectRatio="none"`. The height stays pinned so the line's
+          vertical relationship to the heading never moves. */}
       <span
         ref={routeRef}
         aria-hidden
-        className="pointer-events-none absolute -left-[11px] top-0 block h-[132.371px] w-[423.646px]"
+        className="pointer-events-none absolute -left-[11px] top-0 block h-[132.371px] w-[calc(100%_+_34px)] max-w-[482px]"
       >
         <CommunityRoute progress={progress} />
       </span>
@@ -536,30 +614,75 @@ export default function SectionTen() {
 
       <div className="relative mx-auto max-w-md">
         {/* Heading */}
-        <div className="mx-auto flex w-[281px] max-w-full flex-col items-center gap-6 px-6 text-center text-navy-1">
-          <h2 className="font-sans text-5xl font-semibold leading-[48px] tracking-1px">
-            {/* Each line rises out of its own mask. The 4px of padding is what
-                keeps the descender on "Trips" — the design's line box is 48px
-                on 48px type, which cuts ~3px off the tail — and the matching
-                negative margin hands that space straight back to the layout. */}
-            <span className="block overflow-hidden pb-1 -mb-1">
-              <motion.span style={reduce ? undefined : line1} className="block">
-                9 Million
-              </motion.span>
-            </span>
-            <span className="block overflow-hidden pb-1 -mb-1">
-              <motion.span style={reduce ? undefined : line2} className="block">
-                Trips
-              </motion.span>
-            </span>
+        <div
+          ref={statsRef}
+          onMouseEnter={() => setHeld(true)}
+          onMouseLeave={() => setHeld(false)}
+          onFocusCapture={() => setHeld(true)}
+          onBlurCapture={() => setHeld(false)}
+          className="mx-auto flex w-[281px] max-w-full flex-col items-center gap-6 px-6 text-center text-navy-1"
+        >
+          {/* w-full is load-bearing: the masks hold only absolutely-positioned
+              lines, so they have no intrinsic width, and inside a flex column
+              with items-center the h2 would otherwise collapse to zero and
+              clip every figure out of existence. */}
+          <h2 className="w-full font-sans text-5xl font-semibold leading-[48px] tracking-1px">
+            {[0, 1].map((i) => (
+              // The mask is 52px against a 48px line and gives the 4px back
+              // with -mb-1, so the flow height is the design's 48px while the
+              // descender on "Trips" keeps its tail. The explicit height also
+              // holds the slot open before the first figure arrives.
+              <span
+                key={i}
+                className="relative block h-[52px] -mb-1 overflow-hidden"
+              >
+                <AnimatePresence initial={false}>
+                  {shown && (
+                    <motion.span
+                      key={`${stat}-${i}`}
+                      variants={reduce ? fadeOnly : swapLine}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{
+                        duration: reduce ? 0.25 : 0.7,
+                        ease: EASE,
+                        delay: reduce ? 0 : i * 0.08,
+                      }}
+                      className="absolute inset-x-0 top-0 block"
+                    >
+                      {STATS[stat].lines[i]}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
+            ))}
           </h2>
-          <motion.p
-            style={reduce ? undefined : { opacity: paraOpacity, y: paraY }}
-            className="font-sans text-base font-normal leading-[126%] tracking-16"
-          >
-            Nearly nine million trips taken. Even more memories made along the
-            way.
-          </motion.p>
+
+          {/* The slot holds the shortest body's height and the copy floats
+              above it, so the tall variant reaches into the air below instead
+              of pushing the carousel down every time it comes round. */}
+          <div className="relative w-full min-h-[61px]">
+            <AnimatePresence initial={false}>
+              {shown && (
+                <motion.p
+                  key={stat}
+                  variants={reduce ? fadeOnly : swapBody}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    duration: reduce ? 0.25 : 0.65,
+                    ease: EASE,
+                    delay: reduce ? 0 : 0.12,
+                  }}
+                  className="absolute inset-x-0 top-0 font-sans text-base font-normal leading-[126%] tracking-16"
+                >
+                  {STATS[stat].body}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Story strip — scroll-snaps horizontally */}

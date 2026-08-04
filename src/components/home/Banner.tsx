@@ -33,13 +33,25 @@ const fadeUp: Variants = {
   },
 };
 
-export default function Banner() {
+export default function Banner({
+  /**
+   * Held back while the intro covers the page, so the hero's entrance plays
+   * into the handoff instead of running out of sight behind the curtain. The
+   * image itself still loads throughout — only the motion waits. Defaults to
+   * true, so anywhere that doesn't orchestrate an intro behaves as before.
+   */
+  ready = true,
+}: {
+  ready?: boolean;
+} = {}) {
+  const show = ready ? "show" : "hidden";
+
   return (
     <section className="relative h-[100svh] min-h-[640px] w-full overflow-hidden bg-black">
       {/* Background image with a slow, continuous Ken Burns drift */}
       <motion.div
         initial={{ scale: 1.18 }}
-        animate={{ scale: 1.04 }}
+        animate={{ scale: ready ? 1.04 : 1.18 }}
         transition={{ duration: 12, ease: "easeOut" }}
         className="absolute inset-0"
       >
@@ -66,7 +78,7 @@ export default function Banner() {
             <motion.h1
               variants={container}
               initial="hidden"
-              animate="show"
+              animate={show}
               className="text-hero leading-hero tracking-1px font-semibold text-white sm:text-7xl sm:leading-hero lg:text-8xl lg:leading-hero"
             >
               {HEADLINE.map((word, i) => (
@@ -81,7 +93,11 @@ export default function Banner() {
                       <motion.span
                         aria-hidden
                         initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
+                        animate={
+                          ready
+                            ? { scale: 1, opacity: 1 }
+                            : { scale: 0, opacity: 0 }
+                        }
                         transition={{
                           delay: 1.3,
                           duration: 0.6,
@@ -162,7 +178,7 @@ export default function Banner() {
             <motion.p
               variants={fadeUp}
               initial="hidden"
-              animate="show"
+              animate={show}
               transition={{ delay: 1.05, duration: 0.7, ease: EASE_OUT }}
               className="mt-6 max-w-md text-lead font-normal leading-lead tracking-2px text-white"
             >
@@ -178,7 +194,7 @@ export default function Banner() {
           <motion.div
             variants={fadeUp}
             initial="hidden"
-            animate="show"
+            animate={show}
             transition={{ delay: 1.25, duration: 0.7, ease: EASE_OUT }}
             className="flex w-full max-w-lg flex-nowrap gap-4"
           >
