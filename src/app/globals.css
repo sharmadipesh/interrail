@@ -22,3 +22,20 @@ body {
   color: var(--foreground);
   background: var(--background);
 }
+
+/*
+ * First-visit intro.
+ *
+ * The boot script in the layout sets data-intro="play" before the first paint,
+ * so the server-rendered homepage is held back rather than painted and then
+ * covered over. The body is already white, which is the loader's own
+ * background, so the first frame is seamless.
+ *
+ * visibility rather than display: layout still resolves and the hero's priority
+ * image still loads behind the intro — only the paint waits. React clears the
+ * attribute as the curtain starts to lift, and if the attribute is never set
+ * (returning visitor, reduced motion, no JS) this rule simply never applies.
+ */
+html[data-intro="play"] main {
+  visibility: hidden;
+}

@@ -7,6 +7,7 @@ import Loader, {
   LOADER_EXIT_MS,
   LOADER_REVEAL_MS,
 } from "@/components/generic/Loader";
+import { INTRO_KEY } from "@/components/generic/intro";
 import Banner from "@/components/home/Banner";
 import SectionTwo from "@/components/home/SectionTwo";
 import SectionThree from "@/components/home/SectionThree";
@@ -30,9 +31,6 @@ const IDLE_MS = 180;
 /* ------------------------------------------------------------------ *
  * Intro
  * ------------------------------------------------------------------ */
-
-/** Versioned so a reworked intro can be shown again without stale opt-outs. */
-const INTRO_KEY = "interrail-intro-seen-v1";
 
 /**
  * "pending" is the frame before the client has read sessionStorage. The intro
@@ -98,6 +96,20 @@ export default function Home() {
     window.scrollTo(0, 0);
     setIntro("playing");
   }, []);
+
+  /**
+   * Hands the homepage back the moment the curtain starts to lift, releasing
+   * the boot script's paint hold. A layout effect, not a passive one: if this
+   * landed a frame late the curtain would already be moving over a page that
+   * was still being held back, and the reveal would show white.
+   *
+   * Keyed on the phase rather than called from `onReveal`, so the fallback
+   * timers unblock the page too if the intro's own callback never arrives.
+   */
+  useIntroLayoutEffect(() => {
+    if (intro === "pending" || intro === "playing") return;
+    delete document.documentElement.dataset.intro;
+  }, [intro]);
 
   /** The overlay is over the page for both of these. */
   const introBlocking = intro === "playing" || intro === "revealing";
