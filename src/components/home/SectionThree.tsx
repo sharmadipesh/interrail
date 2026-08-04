@@ -139,6 +139,7 @@ function Clip({
   label,
   className,
   style,
+  armed,
 }: {
   src: string;
   poster: string;
@@ -146,12 +147,28 @@ function Clip({
   /** Absolute placement + aspect ratio for this clip's slot. */
   className: string;
   style: MotionStyle;
+  /**
+   * Whether the section is close enough for this clip to fetch anything. A
+   * `poster` has no lazy attribute — the browser treats it as an eager,
+   * high-priority image — so until this flips, the element deliberately carries
+   * neither a poster nor a source.
+   */
+  armed: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const inView = useInView(wrapRef, { amount: 0.4 });
 
+  // Adding a <source> to a media element does nothing on its own — resource
+  // selection has already run and settled on "no source". load() restarts it.
   useEffect(() => {
+    if (armed) videoRef.current?.load();
+  }, [armed]);
+
+  useEffect(() => {
+    // Before the clip is armed there is no source to play, and nothing playing
+    // that would need pausing.
+    if (!armed) return;
     const v = videoRef.current;
     if (!v) return;
     if (inView) {
@@ -160,7 +177,7 @@ function Clip({
     } else {
       v.pause();
     }
-  }, [inView]);
+  }, [armed, inView]);
 
   return (
     <motion.div
@@ -170,15 +187,15 @@ function Clip({
     >
       <video
         ref={videoRef}
-        poster={poster}
+        poster={armed ? poster : undefined}
         muted
         loop
         playsInline
-        preload="metadata"
+        preload={armed ? "metadata" : "none"}
         aria-label={label}
         className="h-full w-full object-cover"
       >
-        <source src={src} type="video/mp4" />
+        {armed && <source src={src} type="video/mp4" />}
       </video>
     </motion.div>
   );
@@ -204,6 +221,25 @@ function HeadingLine({
 
 export default function SectionThree() {
   const sectionRef = useRef<HTMLElement>(null);
+
+  /**
+   * Arms the clips' media once the section is within 800px of the viewport.
+   *
+   * The two posters are 149KB of raw PNG and, as `poster` attributes, were being
+   * fetched eagerly at the top of the page — ahead of the hero — along with two
+   * MP4 metadata requests. Nothing here is on screen until the section starts,
+   * which on a 390×844 frame is 962px down, and the clips' own entrance does not
+   * begin until roughly 1384px down.
+   *
+   * 800px puts the fetch at ~162px of scroll: off the initial load entirely, but
+   * with well over a thousand pixels of runway before anything animates, so the
+   * poster is always in place before the clip is on stage. `once` so it never
+   * re-arms, and the play/pause gate below is untouched.
+   */
+  const clipsArmed = useInView(sectionRef, {
+    once: true,
+    margin: "800px 0px 800px 0px",
+  });
 
   // One timeline for the whole section. `start 0.5` opens it as the stage's
   // centre reaches the fold; `end end` closes it exactly as sticky releases.
@@ -257,6 +293,7 @@ export default function SectionThree() {
             label="Friends together on a train crossing Europe"
             className="left-[46.49%] right-[-1.76%] top-[52px] aspect-[1280/720]"
             style={landscape}
+            armed={clipsArmed}
           />
 
           {/* Portrait clip — lower left, sitting behind the tagline. */}
@@ -266,6 +303,7 @@ export default function SectionThree() {
             label="A traveller with a bike at golden hour"
             className="left-0 right-[53.51%] top-[326px] aspect-[720/900]"
             style={portrait}
+            armed={clipsArmed}
           />
 
           {/* Headline. The fixed 205px box with centred lines is the design's own

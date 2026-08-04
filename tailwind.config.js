@@ -21,7 +21,10 @@ module.exports = {
       },
       fontFamily: {
         sans: ["var(--font-poppins)", "system-ui", "sans-serif"],
-        mono: ["var(--font-roboto-mono)", "ui-monospace", "monospace"],
+        // Roboto Mono is no longer loaded — nothing on the site renders
+        // `font-mono`. The in-var fallback keeps the utility valid rather than
+        // leaving an undefined var() that would invalidate the declaration.
+        mono: ["var(--font-roboto-mono, ui-monospace)", "ui-monospace", "monospace"],
         departure: ['"Departure Mono"', "monospace"],
       },
       fontSize: {
