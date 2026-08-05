@@ -18,6 +18,16 @@ import {
 // Premium ease-out — smooth, no bounce. Matches the rest of the page.
 const EASE = cubicBezier(0.22, 1, 0.36, 1);
 
+/**
+ * Fades get their own curve. EASE is a hard ease-out: on travel that reads as
+ * arriving with authority, but on opacity it front-loads so heavily that a clip
+ * is 77% opaque a quarter of the way through its window — the abrupt fade this
+ * timeline is meant to avoid. This is symmetric and gentle at both ends, so the
+ * fade still resolves gradually while starting and finishing without the
+ * velocity step a linear ramp leaves behind.
+ */
+const EASE_FADE = cubicBezier(0.45, 0, 0.55, 1);
+
 const HEADING = ["Staying", "curious"];
 
 // The middle four letters are white so they read out of the portrait clip
@@ -31,17 +41,20 @@ const WHITE_TO = 4;
  * ------------------------------------------------------------------ */
 
 /**
- * Same spring the route section uses, for one reason: Lenis already smooths the
- * wheel, so a heavy spring on top of it smooths an already-smooth signal and
- * reads as lag. This settles in ~100ms and cannot overshoot (damping ratio
- * 1.15), which matters here because an elastic tail on a 78vw slide would show.
+ * Lenis already smooths the wheel with a 0.75s easeOutExpo, so this spring is
+ * not the thing making the scroll smooth — it only takes the residual step out
+ * of an already-smoothed signal. Tuned up from 120/16 now the travel is a
+ * fraction of what it was: at 130/18 the damping ratio is
+ * 18 / (2·√(130·0.4)) = 1.25, so it still cannot overshoot, but it settles
+ * sooner and the composition sits closer to the scroll instead of trailing it.
+ * Two lagging smoothers stacked on each other is what reads as floaty.
  *
  * restDelta is not cosmetic — the default 0.01 is a full 1% of a 0 → 1 progress
  * range, so the spring stops short of its target and snaps the last step.
  */
 const SPRING = {
-  stiffness: 120,
-  damping: 16,
+  stiffness: 130,
+  damping: 18,
   mass: 0.4,
   restDelta: 0.0001,
 } as const;
@@ -49,30 +62,87 @@ const SPRING = {
 type Range = readonly [number, number];
 
 /**
- * The section is 220svh tall and the stage pins for the middle of it. With the
- * timeline anchored `["start 0.5", "end end"]`, the pin engages at exactly
- * 0.5 / (2.2 - 1 + 0.5) = 0.294 and releases at 1.0 — sticky lets go the
- * instant the section's bottom meets the viewport's, so progress 1 *is* the
- * release. Everything below is placed against those two fixed points.
+ * The section is 190svh tall and the stage pins for the middle of it. With the
+ * timeline anchored `["start 0.5", "end end"]`, the whole 0 → 1 spans
+ * 1.9 - 1 + 0.5 = 1.4 viewports; the pin engages at 0.5 / 1.4 = 0.357 and
+ * releases at 1.0 — sticky lets go the instant the section's bottom meets the
+ * viewport's, so progress 1 *is* the release. Everything below is placed
+ * against those two fixed points.
  *
- * The heading resolves before the pin, while the composition is still rising
- * into place, so it has established focus before anything else moves.
+ * That leaves 90svh of pinned travel. The heading still resolves before the pin
+ * takes hold, so it has established focus before anything else moves.
  */
-const STAYING: Range = [0.04, 0.2];
-const CURIOUS: Range = [0.09, 0.25];
-// Both clips move only while pinned. They overlap by design — the portrait
-// leaves before the landscape has landed, so the two reads as one gesture.
-const LANDSCAPE: Range = [0.32, 0.57];
-const PORTRAIT: Range = [0.41, 0.69];
+const STAYING: Range = [0.04, 0.19];
+const CURIOUS: Range = [0.09, 0.23];
+// 0.23 → 0.34 is the held beat: the heading is readable and the two clips have
+// gathered at its centre, but nothing has started separating yet.
+const LANDSCAPE: Range = [0.34, 0.58];
+const PORTRAIT: Range = [0.4, 0.66];
 // The tagline waits: its middle letters sit on top of the portrait clip, so it
-// can only resolve once that clip is essentially home.
-const TAGLINE: Range = [0.67, 0.84];
+// can only resolve once that clip is essentially home — at 0.65 the portrait is
+// 96% of the way there.
+const TAGLINE: Range = [0.65, 0.84];
 // 0.84 → 1.00 is deliberately empty. The completed composition holds, then
 // scrolls away with the page when sticky releases — nothing fades or scales
 // out, which is what keeps the hand-off to SectionFour from feeling abrupt.
 
-/** How far off-stage each clip starts, in viewport widths. */
-const ENTRY_VW = 78;
+/**
+ * Where each clip starts, measured from its own final home.
+ *
+ * These are not eyeballed. At the 390px reference the column is 342px wide, and
+ * measuring the laid-out composition gives centres of (253.5, 105.2) for the
+ * landscape, (79.5, 425.4) for the portrait, and (171, 220.5) for the heading
+ * box that both are gathering onto. The offsets below are exactly the vectors
+ * from each clip's centre to the heading's, so the pair genuinely coincides
+ * rather than approximately.
+ *
+ * `x` is a share of the clip's *own* width, not the viewport. That is the whole
+ * point: the old entrance travelled ±78vw against a composition capped at
+ * 342px, so the same gesture covered 1.6 clip-widths on a phone and 5.9 on a
+ * desktop — the reason it read as abrupt on a wide screen. Tied to the element,
+ * the split is the same move at every width.
+ *
+ * `y` is a constant plus a share of the clip's own height, which makes it exact
+ * at every width rather than only at the reference one. A clip's resting centre
+ * is `top + height/2`, and `top` is a fixed px in the design while `height`
+ * scales with the column — so the vector onto the heading's centre is
+ * `(220.5 - top) - height/2`, i.e. a constant and a flat -50% of its own
+ * height. A single fixed px value drifted 11px (landscape) and 20px (portrait)
+ * by the time the column reached 320px; this does not drift at all, and it
+ * still costs nothing but a percentage.
+ *
+ * `fade` is deliberately its own window rather than a fraction of the travel.
+ * The cluster has to be *visible* during the held beat before it separates, so
+ * each clip resolves from transparent starting inside that hold and reaches
+ * full opacity around 42% of its own travel.
+ */
+type Split = {
+  /** Horizontal start, as a percentage of the clip's own width. */
+  x: number;
+  /** Vertical start: this many px… */
+  yPx: number;
+  /** …plus this share of the clip's own height. */
+  yPct: number;
+  scale: number;
+  fade: Range;
+};
+
+// 220.5 - 52 = 168.5, against the landscape's `top-[52px]`.
+const LANDSCAPE_SPLIT: Split = {
+  x: -43.65,
+  yPx: 168.5,
+  yPct: -50,
+  scale: 0.92,
+  fade: [0.25, 0.44],
+};
+// 220.5 - 326 = -105.5, against the portrait's `top-[326px]`.
+const PORTRAIT_SPLIT: Split = {
+  x: 57.55,
+  yPx: -105.5,
+  yPct: -50,
+  scale: 0.92,
+  fade: [0.3, 0.51],
+};
 
 /**
  * Layout used when the pin is inapplicable: reduced motion, and viewports too
@@ -87,7 +157,14 @@ const NO_PIN_STAGE =
   "[@media(max-height:600px)]:static [@media(max-height:600px)]:block [@media(max-height:600px)]:min-h-0 [@media(max-height:600px)]:pt-7 [@media(max-height:600px)]:pb-[158px]";
 const NO_PIN_SECTION = "motion-reduce:h-auto [@media(max-height:600px)]:h-auto";
 
-/** Rises and resolves out of a light blur. Holds once revealed. */
+/**
+ * Rises and resolves out of a light blur. Holds once revealed.
+ *
+ * A caller asking for no blur gets no `filter` at all, rather than an animated
+ * `blur(0px)`. The zero-radius filter is invisible but not free: it still puts
+ * the element on its own filter layer and re-runs that filter every frame it is
+ * scrubbed, which on the tagline was a per-frame cost buying nothing.
+ */
 function useReveal(
   progress: MotionValue<number>,
   [from, to]: Range,
@@ -98,32 +175,48 @@ function useReveal(
   const y = useTransform(progress, [from, to], [distance, 0], { ease: EASE });
   const blurPx = useTransform(progress, [from, to], [blur, 0], { ease: EASE });
   const filter = useMotionTemplate`blur(${blurPx}px)`;
-  return { opacity, y, filter };
+  // The hooks above always run; only what is handed to the element varies.
+  return blur > 0 ? { opacity, y, filter } : { opacity, y };
 }
 
 /**
- * A clip sliding in from off-stage to its final position.
+ * A clip peeling away from the centred cluster to its final position.
  *
- * `x` is expressed in viewport widths so the entrance starts off-screen at any
- * size, and it animates the transform only — the absolute left/right/top that
- * place the clip are never touched, so the final composition is exactly the
- * design's. Opacity resolves over the first third of the travel; fading across
- * the whole slide would leave the clip invisible for most of its journey.
+ * Every value resolves to its rest state at the end of the range — x to 0%, y
+ * to 0, scale to 1 — so the finished composition is the absolute
+ * left/right/top the design specifies, untouched. The transform is the only
+ * thing that moves.
+ *
+ * The x template always emits a percentage, including at rest, so there is no
+ * unit change for the compositor to resolve as the value lands on zero.
  */
-function useSlideIn(
+function useCenterSplit(
   progress: MotionValue<number>,
   [from, to]: Range,
-  fromVw: number,
+  split: Split,
 ): MotionStyle {
-  const vw = useTransform(progress, [from, to], [fromVw, 0], { ease: EASE });
-  const x = useMotionTemplate`${vw}vw`;
-  const opacity = useTransform(
-    progress,
-    [from, from + (to - from) * 0.34],
-    [0, 1],
-  );
-  const scale = useTransform(progress, [from, to], [1.04, 1], { ease: EASE });
-  return { x, opacity, scale };
+  const xPct = useTransform(progress, [from, to], [split.x, 0], { ease: EASE });
+  const x = useMotionTemplate`${xPct}%`;
+  // The two halves of the vertical vector are interpolated separately and
+  // composed as a calc, because one is px and the other is a share of the
+  // clip's own height — there is no single unit that expresses both.
+  const yPx = useTransform(progress, [from, to], [split.yPx, 0], {
+    ease: EASE,
+  });
+  const yPct = useTransform(progress, [from, to], [split.yPct, 0], {
+    ease: EASE,
+  });
+  const y = useMotionTemplate`calc(${yPx}px + ${yPct}%)`;
+  const scale = useTransform(progress, [from, to], [split.scale, 1], {
+    ease: EASE,
+  });
+  // Spread rather than passed through: `Range` is readonly and useTransform
+  // takes a mutable input range. Eased so the fade neither starts nor ends on a
+  // velocity step, which is where a linear ramp shows.
+  const opacity = useTransform(progress, [...split.fade], [0, 1], {
+    ease: EASE_FADE,
+  });
+  return { x, y, scale, opacity };
 }
 
 /**
@@ -224,19 +317,19 @@ export default function SectionThree() {
   const reduce = useReducedMotion();
   const progress = reduce ? settled : smoothed;
 
-  const landscape = useSlideIn(progress, LANDSCAPE, ENTRY_VW);
-  const portrait = useSlideIn(progress, PORTRAIT, -ENTRY_VW);
+  const landscape = useCenterSplit(progress, LANDSCAPE, LANDSCAPE_SPLIT);
+  const portrait = useCenterSplit(progress, PORTRAIT, PORTRAIT_SPLIT);
   // Grouped, not per-character: at this tracking a character flick reads as
   // noise against the clip behind it. The white/navy split is untouched.
   const tagline = useReveal(progress, TAGLINE, 14, 0);
 
   return (
     // `overflow-x: clip` rather than hidden — clip does not create a scroll
-    // container, so it swallows the off-stage clips without stealing the
-    // scrollport that `position: sticky` below needs to resolve against.
+    // container, so it can guard the column's right-hand bleed without
+    // stealing the scrollport that `position: sticky` below resolves against.
     <section
       ref={sectionRef}
-      className={`relative h-[220svh] overflow-x-clip bg-white px-6 ${NO_PIN_SECTION}`}
+      className={`relative h-[190svh] overflow-x-clip bg-white px-6 ${NO_PIN_SECTION}`}
     >
       <div
         className={`sticky top-0 flex min-h-[100svh] items-center ${NO_PIN_STAGE}`}
