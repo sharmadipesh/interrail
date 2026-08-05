@@ -26,19 +26,19 @@ type Pass = {
 
 const PASSES: Pass[] = [
   {
-    marker: "ring",
-    kicker: "GLOBAL PASS",
-    title: "5 travel days",
-    desc: "Room for four to six cities in one month. The classic first Interrail.",
-    price: "€239",
-  },
-  {
     marker: "dot",
     kicker: "GLOBAL PASS . MOST CHOSEN",
     title: "7 travel days",
     badge: "MOST CHOSEN",
     desc: "Room for six to eight cities in one month. The one most people wish they had bought.",
     price: "€286",
+  },
+  {
+    marker: "ring",
+    kicker: "GLOBAL PASS",
+    title: "5 travel days",
+    desc: "Room for four to six cities in one month. The classic first Interrail.",
+    price: "€239",
   },
   {
     marker: "ring",

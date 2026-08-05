@@ -29,6 +29,13 @@ const EASE = cubicBezier(0.22, 1, 0.36, 1);
 const EASE_TEXT = cubicBezier(0.16, 1, 0.3, 1);
 
 /**
+ * How far the outer statements reach back toward their own edge before
+ * settling. 22px against the section's 24px gutter, so a statement never
+ * travels further out than the margin it is aligned to.
+ */
+const SETTLE_X = 22;
+
+/**
  * Light touch on purpose. Lenis already smooths the wheel, so a heavy spring
  * here just smooths a smooth signal and the result reads as lag. This settles
  * in ~100ms and still can't overshoot (damping ratio 1.15).
@@ -134,11 +141,21 @@ function Reveal({
   className,
   html,
   blur = 6,
+  from,
   children,
 }: {
   className: string;
   html?: string;
   blur?: number;
+  /**
+   * Which side the copy settles in from, for the statements that sit along the
+   * route. Each one reaches back toward the edge it is aligned to and closes
+   * the gap as it arrives, so the motion carries the same left-to-right
+   * direction the route itself is drawing in.
+   *
+   * Omit it — as the headings do — for a straight rise out of a blur.
+   */
+  from?: "left" | "center" | "right";
   children?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -149,15 +166,22 @@ function Reveal({
   const blurPx = useTransform(progress, [0, 1], [blur, 0], { ease: EASE_TEXT });
   const filter = useMotionTemplate`blur(${blurPx}px)`;
 
+  // The centre statement has nowhere to reach back to, so it rises straight —
+  // which is what its own alignment is already saying.
+  const offset = from === "left" ? -SETTLE_X : from === "right" ? SETTLE_X : 0;
+  const x = useTransform(progress, [0, 1], [offset, 0], { ease: EASE_TEXT });
+
+  // Two transforms and an opacity, or two transforms and a filter — never
+  // both. A blur holds a compositing layer for the whole of its run, so it is
+  // only paid for where it is actually used.
+  const style = from ? { opacity, y, x } : { opacity, y, filter };
+
   return (
     <div ref={ref} className={className}>
       {html ? (
-        <motion.div
-          style={{ opacity, y, filter }}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <motion.div style={style} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <motion.div style={{ opacity, y, filter }}>{children}</motion.div>
+        <motion.div style={style}>{children}</motion.div>
       )}
     </div>
   );
@@ -270,6 +294,12 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
       <motion.path
         d="M-2.99825 121.684L7.65755 129.585L9.89719 127.666L35.5405 114.981L76.0936 125.134L154.454 180.312L224.941 208.17L231.846 205.349L272.092 208.798L274.014 205.602L278.68 204.7L281.806 207.441L292.788 211.192L325.734 259.608L331.23 258.769L348.062 278.411L354.258 279.295L357.319 282.866L384.816 304.982L404.487 309.804"
         stroke="#AFAFAF"
+        // Explicit, like every other route stroke on the page. Left off, this
+        // one fell back to SVG's default width of 1 and drew half as heavy as
+        // the yellow it continues from — and as both of the lower route's
+        // strokes — so the grey tail read as a different, lighter line rather
+        // than the same route carrying on.
+        strokeWidth="2"
         strokeLinecap="round"
         style={grey}
       />
@@ -325,13 +355,32 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
     "M-6.90919 283.029L4.53728 271.849L24.4306 250.882L35.9117 241.674L41.9109 238.888L42.4278 233.877L71.8024 201.747L79.629 199.703L93.9718 189.862L111.074 199.414L136.451 206.615L160.586 203.359L186.582 185.521L235.954 138.34L267.777 125.152L307.668 97.7812L330.836 65.2539L341.732 65.7606L381.622 38.3894L392.828 39.3483";
 
   return (
+    // 283 tall rather than 253, and the element is allowed to hang the extra 30
+    // below its box.
+    //
+    // The path's own start is (-6.90919, 283.029) — off the left edge and below
+    // the bottom one. A 253-unit frame cut that last stretch off, so the line
+    // had to enter through the bottom edge about 22 units in rather than
+    // reaching the left side. Taking the frame down to the path's real extent
+    // puts the descent back on screen.
+    //
+    // Deliberately *not* a pan of the existing window: the route sits ~8 units
+    // under the copy above it by design, so shifting it up to make room drives
+    // it straight through "…the view from the train."
+    //
+    // Nothing about the route moves. viewBox width and the y origin are
+    // unchanged, and at the 390 design width the box and the viewBox still
+    // match 1:1, so the scale, the stations' radii and every coordinate land
+    // exactly where they did. The 30 extra units fall into the padding added at
+    // the foot of the section, and the positioning box this route's scroll
+    // timeline measures keeps its 253px — so the draw is untouched.
     <svg
-      viewBox="0 0 390 253"
+      viewBox="0 0 390 283"
       fill="none"
       preserveAspectRatio={SVG_FIT}
       aria-hidden="true"
       focusable="false"
-      className={SVG_CLASS}
+      className="absolute inset-x-0 top-0 h-[283px] w-full"
     >
       <motion.path
         d={D}
@@ -390,7 +439,11 @@ export default function SectionTwo() {
     // z-index resolves inside the section: they paint above its white
     // background but behind all of the copy. (`isolate` alone is not enough —
     // the background still wins.)
-    <div className="relative z-0 bg-white px-6">
+    // pb-[30px]: the lower route hangs 30px past its positioning box so its
+    // descent off the bottom-left stays on screen. Without this the overflow
+    // would land on the next section, whose own white background paints after
+    // this one and would cover it.
+    <div className="relative z-0 bg-white px-6 pb-[30px]">
       <Reveal className="pt-[120px] text-navy-1 text-center font-sans text-5xl font-semibold tracking-1px leading-[105%]">
         One continent.
         <br />
@@ -425,18 +478,23 @@ export default function SectionTwo() {
         {/* The statements sit along the route, so timing each to its own
             entrance reproduces the route order without hard-coding it. */}
         {STACK.map((item, index) => {
+          // Each statement settles in from the edge it is aligned to, so the
+          // reveal reads off the layout rather than being applied on top of it.
           let align = "justify-self-start";
+          let from: "left" | "center" | "right" = "left";
           if (index === 1) {
             align = "justify-self-center";
+            from = "center";
           }
           if (index === 2) {
             align = "justify-self-end";
+            from = "right";
           }
           return (
             <Reveal
               key={index}
               html={item}
-              blur={4}
+              from={from}
               className={`text-navy-1 font-sans text-base font-normal tracking-16 leading-[125%] ${align}`}
             />
           );
