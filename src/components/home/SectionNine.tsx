@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useTouchPulse } from "@/components/generic/useTouchPulse";
 import {
   cubicBezier,
   motion,
@@ -109,36 +110,52 @@ const PARALLAX_SPRING = {
   restDelta: 0.001,
 } as const;
 
+/**
+ * Opacity only — the card must never carry a transform.
+ *
+ * This used to reveal with `y: 34` and `scale: 0.985`. Both are transforms on
+ * the element that holds the photo, and the reveal is triggered by scroll
+ * position, so the card was translating *against* the page at the exact moment
+ * the page was moving under it. Measured, the frame's document anchor
+ * (`top + scrollY`, which is fixed for anything that only moves with the page)
+ * swung 37.7px while it played.
+ *
+ * That is the jump: not the photo drifting inside the card, but the whole card
+ * — photo, scrim and name together — lurching against the scroll. It shows only
+ * when the strip is partly on screen because that is when the trigger fires; by
+ * the time the strip is fully in view the transform has already resolved to 0,
+ * and offscreen it has not started.
+ *
+ * A fade has no such failure mode: opacity does not move anything, so the card
+ * now holds exactly the position the document gives it at every scroll offset.
+ */
 const cardIn: Variants = {
-  hidden: { opacity: 0, y: 34, scale: 0.985 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
-    scale: 1,
     transition: { duration: 0.8, ease: EASE },
   },
 };
 
-// Slow settle out of the frame, cropped by the card's overflow-hidden box.
-const kenBurns: Variants = {
-  hidden: { scale: 1.1 },
-  show: { scale: 1, transition: { duration: 1.2, ease: EASE } },
-};
-
+/** Sits over the photo, so it fades rather than slides for the same reason. */
 const nameIn: Variants = {
-  hidden: { opacity: 0, y: 12 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
     transition: { duration: 0.55, ease: EASE, delay: 0.18 },
   },
 };
 
+/**
+ * No `y` here either. A downward transform on a card's child counts toward the
+ * strip's scrollable overflow, which is what made the strip scrollable on an
+ * axis it has no business scrolling on. It would also be the one thing the
+ * strip's new `overflow-y: hidden` could clip.
+ */
 const quoteIn: Variants = {
-  hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
+  hidden: { opacity: 0, filter: "blur(4px)" },
   show: {
     opacity: 1,
-    y: 0,
     filter: "blur(0px)",
     transition: { duration: 0.65, ease: EASE, delay: 0.28 },
   },
@@ -227,23 +244,32 @@ function StoryCard({
       className="flex w-[297px] shrink-0 snap-start flex-col gap-[21.704px]"
     >
       <div className="relative flex h-[396px] flex-col justify-end overflow-hidden px-[27.415px] py-[36.554px]">
-        {/* Ken Burns and drift sit on separate layers so neither has to share a
-            transform with the other, and both sit under the scrim and the name,
-            which stay pinned to the frame. */}
-        <motion.div variants={kenBurns} className="absolute inset-0">
-          <motion.div
-            style={{ x: reduce ? 0 : drift }}
-            className="absolute inset-y-0 -left-[10%] w-[120%]"
-          >
-            <Image
-              fill
-              src={story.src}
-              alt={story.name}
-              draggable={false}
-              sizes="357px"
-              className={`select-none object-cover ${story.position}`}
-            />
-          </motion.div>
+        {/* One layer, carrying one transform: the horizontal drift.
+
+            There used to be a Ken Burns layer above this one settling the photo
+            from scale 1.1 to 1 over the entrance. A uniform scale inside a
+            fixed frame is vertical movement as much as horizontal — it sat the
+            photo 19.5px high in its 396px frame and walked it back down — and
+            because the entrance is gated on the section being 20% on screen, it
+            ran while the strip itself was still climbing into view. The photo
+            drifted against its own frame at exactly the moment the frame was
+            moving, which read as the image sliding inside the card.
+
+            The drift below is horizontal only and is driven by the strip's own
+            scrollLeft, never the page's scrollY, so the photo now holds its
+            vertical position in the frame no matter where the card sits. */}
+        <motion.div
+          style={{ x: reduce ? 0 : drift }}
+          className="absolute inset-y-0 -left-[10%] w-[120%]"
+        >
+          <Image
+            fill
+            src={story.src}
+            alt={story.name}
+            draggable={false}
+            sizes="357px"
+            className={`select-none object-cover ${story.position}`}
+          />
         </motion.div>
 
         <div
@@ -273,7 +299,9 @@ export default function SectionNine() {
   const sectionRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
   const reduce = !!useReducedMotion();
+  const ctaPulse = useTouchPulse(ctaRef, reduce);
 
   // Gates the first card so it waits for the section rather than firing while
   // SectionEight is still the thing being looked at.
@@ -346,9 +374,26 @@ export default function SectionNine() {
     >
       {/* Story strip — scroll-snaps horizontally; scroll-pl-6 keeps a snapped
           card against the page gutter rather than the viewport edge. */}
+      {/* overflow-y-hidden is load-bearing, not tidying.
+
+          `overflow-x: auto` on its own leaves `overflow-y: visible`, and CSS
+          does not allow that pairing: a `visible` axis computes to `auto` when
+          the other axis is not visible. So this strip was silently a *vertical*
+          scroll container as well, with ~20px of scrollable range coming from
+          the not-yet-revealed cards' downward `y` transforms — transformed
+          boxes count toward scrollable overflow.
+
+          With the pointer over the strip, the browser scrolls the innermost
+          scrollable ancestor on that axis first, so a page scroll was being
+          spent sliding the cards up inside the strip before the page moved at
+          all, and giving it back on the way up. That is the image sliding up
+          and down, and it only showed while the strip was under the cursor —
+          i.e. while it was partly on screen.
+
+          Pinning the axis means a page scroll can never be absorbed here. */}
       <div
         ref={viewportRef}
-        className="snap-x snap-mandatory scroll-pl-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="snap-x snap-mandatory scroll-pl-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div ref={trackRef} className="flex w-max gap-5 px-6">
           {STORIES.map((story) => (
@@ -415,8 +460,13 @@ export default function SectionNine() {
         </motion.div>
 
         <motion.button
+          ref={ctaRef}
           variants={ctaIn}
           type="button"
+          // Present only on hover-less devices, and only while on screen.
+          // Elsewhere it is absent and the selectors below never match, so a
+          // pointer keeps the plain hover behaviour.
+          data-pulse={ctaPulse ? "on" : undefined}
           whileHover={reduce ? undefined : { y: -1 }}
           whileTap={{ scale: 0.98 }}
           transition={{ duration: 0.3, ease: EASE }}
@@ -432,11 +482,11 @@ export default function SectionNine() {
             width={8}
             height={7}
             unoptimized
-            className="transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
+            className="transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
           />
           <span
             aria-hidden
-            className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100"
+            className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 group-data-[pulse=on]:scale-x-100"
           />
         </motion.button>
       </div>

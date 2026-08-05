@@ -29,6 +29,13 @@ const EASE = cubicBezier(0.22, 1, 0.36, 1);
 const EASE_TEXT = cubicBezier(0.16, 1, 0.3, 1);
 
 /**
+ * How far the outer statements reach back toward their own edge before
+ * settling. 22px against the section's 24px gutter, so a statement never
+ * travels further out than the margin it is aligned to.
+ */
+const SETTLE_X = 22;
+
+/**
  * Light touch on purpose. Lenis already smooths the wheel, so a heavy spring
  * here just smooths a smooth signal and the result reads as lag. This settles
  * in ~100ms and still can't overshoot (damping ratio 1.15).
@@ -134,11 +141,21 @@ function Reveal({
   className,
   html,
   blur = 6,
+  from,
   children,
 }: {
   className: string;
   html?: string;
   blur?: number;
+  /**
+   * Which side the copy settles in from, for the statements that sit along the
+   * route. Each one reaches back toward the edge it is aligned to and closes
+   * the gap as it arrives, so the motion carries the same left-to-right
+   * direction the route itself is drawing in.
+   *
+   * Omit it — as the headings do — for a straight rise out of a blur.
+   */
+  from?: "left" | "center" | "right";
   children?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -149,15 +166,22 @@ function Reveal({
   const blurPx = useTransform(progress, [0, 1], [blur, 0], { ease: EASE_TEXT });
   const filter = useMotionTemplate`blur(${blurPx}px)`;
 
+  // The centre statement has nowhere to reach back to, so it rises straight —
+  // which is what its own alignment is already saying.
+  const offset = from === "left" ? -SETTLE_X : from === "right" ? SETTLE_X : 0;
+  const x = useTransform(progress, [0, 1], [offset, 0], { ease: EASE_TEXT });
+
+  // Two transforms and an opacity, or two transforms and a filter — never
+  // both. A blur holds a compositing layer for the whole of its run, so it is
+  // only paid for where it is actually used.
+  const style = from ? { opacity, y, x } : { opacity, y, filter };
+
   return (
     <div ref={ref} className={className}>
       {html ? (
-        <motion.div
-          style={{ opacity, y, filter }}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <motion.div style={style} dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
-        <motion.div style={{ opacity, y, filter }}>{children}</motion.div>
+        <motion.div style={style}>{children}</motion.div>
       )}
     </div>
   );
@@ -454,18 +478,23 @@ export default function SectionTwo() {
         {/* The statements sit along the route, so timing each to its own
             entrance reproduces the route order without hard-coding it. */}
         {STACK.map((item, index) => {
+          // Each statement settles in from the edge it is aligned to, so the
+          // reveal reads off the layout rather than being applied on top of it.
           let align = "justify-self-start";
+          let from: "left" | "center" | "right" = "left";
           if (index === 1) {
             align = "justify-self-center";
+            from = "center";
           }
           if (index === 2) {
             align = "justify-self-end";
+            from = "right";
           }
           return (
             <Reveal
               key={index}
               html={item}
-              blur={4}
+              from={from}
               className={`text-navy-1 font-sans text-base font-normal tracking-16 leading-[125%] ${align}`}
             />
           );

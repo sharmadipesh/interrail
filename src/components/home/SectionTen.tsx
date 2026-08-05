@@ -161,35 +161,26 @@ function stopWindow([from, to]: Range, at: number): Range {
 }
 
 const cardIn: Variants = {
-  hidden: { opacity: 0, y: 34, scale: 0.985 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
-    scale: 1,
     transition: { duration: 0.8, ease: EASE },
   },
 };
 
-const kenBurns: Variants = {
-  hidden: { scale: 1.1 },
-  show: { scale: 1, transition: { duration: 1.15, ease: EASE } },
-};
-
 const quoteIn: Variants = {
-  hidden: { opacity: 0, y: 16, filter: "blur(4px)" },
+  hidden: { opacity: 0, filter: "blur(4px)" },
   show: {
     opacity: 1,
-    y: 0,
     filter: "blur(0px)",
     transition: { duration: 0.6, ease: EASE, delay: 0.18 },
   },
 };
 
 const nameIn: Variants = {
-  hidden: { opacity: 0, y: 11 },
+  hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    y: 0,
     transition: { duration: 0.55, ease: EASE, delay: 0.3 },
   },
 };
@@ -421,22 +412,22 @@ function StoryCard({
       animate={show ? "show" : "hidden"}
       className="relative h-[396px] w-[297px] shrink-0 snap-start overflow-hidden"
     >
-      {/* Ken Burns and drift on separate layers — one transform each — and both
-          beneath the scrim and figure, which stay pinned to the frame. */}
-      <motion.div variants={kenBurns} className="absolute inset-0">
-        <motion.div
-          style={{ x: reduce ? 0 : drift }}
-          className="absolute inset-y-0 -left-[10%] w-[120%]"
-        >
-          <Image
-            fill
-            src={story.src}
-            alt={story.name}
-            draggable={false}
-            sizes="357px"
-            className={`select-none object-cover ${story.position}`}
-          />
-        </motion.div>
+      {/* One layer, one transform: the horizontal drift. The Ken Burns scale
+          that used to sit above it moved the photo vertically inside a fixed
+          frame, which is the same drift-against-a-moving-frame this strip's
+          sibling had. Beneath the scrim and figure, which stay pinned. */}
+      <motion.div
+        style={{ x: reduce ? 0 : drift }}
+        className="absolute inset-y-0 -left-[10%] w-[120%]"
+      >
+        <Image
+          fill
+          src={story.src}
+          alt={story.name}
+          draggable={false}
+          sizes="357px"
+          className={`select-none object-cover ${story.position}`}
+        />
       </motion.div>
 
       <div
@@ -692,7 +683,7 @@ export default function SectionTen() {
               track's own left padding. */}
           <div
             ref={viewportRef}
-            className="snap-x snap-mandatory scroll-pl-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="snap-x snap-mandatory scroll-pl-6 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <div ref={trackRef} className="flex w-max gap-5 px-6">
               {STORIES.map((story) => (
