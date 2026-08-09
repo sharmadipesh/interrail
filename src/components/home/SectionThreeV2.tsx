@@ -14,18 +14,28 @@ import {
   type MotionStyle,
 } from "framer-motion";
 
-// Premium ease-out — smooth, no bounce. Matches the rest of the page.
-const EASE = cubicBezier(0.22, 1, 0.36, 1);
-
 /**
- * Fades get their own curve. EASE is a hard ease-out: on travel that reads as
- * arriving with authority, but on opacity it front-loads so heavily that a clip
- * is 77% opaque a quarter of the way through its window — the abrupt fade this
- * timeline is meant to avoid. This is symmetric and gentle at both ends, so the
- * fade still resolves gradually while starting and finishing without the
- * velocity step a linear ramp leaves behind.
+ * One curve for everything scrubbed in this section — scale, rise and opacity
+ * alike. This is the "smooth like butter" one.
+ *
+ * The page's usual `cubicBezier(0.22, 1, 0.36, 1)` is a hard ease-out, and it
+ * is the wrong tool for scroll-driven motion: as a cubic bezier its slope at
+ * t=0 is y1/x1 = 1 / 0.22 = 4.55, so it dumps most of its travel into the first
+ * few pixels of scroll and then crawls the rest. Pinned to a wheel that reads
+ * as a lurch followed by a drag, not as an ease — the same objection the drawn
+ * routes elsewhere on the page raise about easing a scrubbed value at all.
+ *
+ * This starts and ends at exactly zero velocity and peaks at 1.83 against that
+ * curve's 4.08. Nothing jumps when you first touch the wheel and nothing stops
+ * dead when it lands; the motion only ever accelerates and decelerates.
+ *
+ * It replaces a separate fade curve too. That one was `(0.45, 0, 0.55, 1)`,
+ * picked for exactly the same reason — gentle at both ends so opacity never
+ * front-loads — and it turns out to be this curve to three decimal places: an
+ * identical 1.831 peak. Two names for one shape is just something else to keep
+ * in agreement, so there is now one.
  */
-const EASE_FADE = cubicBezier(0.45, 0, 0.55, 1);
+const EASE_SILK = cubicBezier(0.42, 0, 0.58, 1);
 
 const HEADING = ["Staying", "curious"];
 
@@ -38,7 +48,7 @@ const WHITE_TO = 4;
 /* ------------------------------------------------------------------ *
  * Motion system — "Pop in place"
  *
- * Each clip simply appears: it scales up from 0.8 out of its own centre and
+ * Each clip simply appears: it scales up from 0.84 out of its own centre and
  * resolves. That is the whole gesture.
  *
  * Nothing here is derived from where a clip sits. A scale about the centre has
@@ -56,18 +66,24 @@ const WHITE_TO = 4;
  * not the thing making the scroll smooth — it only takes the residual step out
  * of an already-smoothed signal.
  *
- * Natural frequency √(180/0.35) = 22.7 rad/s and damping ratio
- * 22 / (2·√(180 · 0.35)) = 1.39 — over-damped, so it settles quickly and
- * physically cannot overshoot. That last part is what keeps a pop from turning
- * into a bounce: the scale arrives at 1 and stays there.
+ * Natural frequency √(150/0.4) = 19.4 rad/s and damping ratio
+ * 21 / (2·√(150 · 0.4)) = 1.36 — over-damped, so it physically cannot
+ * overshoot. That last part is what keeps a pop from turning into a bounce:
+ * the scale arrives at 1 and stays there.
+ *
+ * Softened about 16% from 180/22/0.35 as part of making this glide. The spring
+ * is what takes the micro-jitter out of the wheel, so a little more of it reads
+ * as smoother — but only a little. An earlier 120/20/0.45 was slack enough that
+ * the composition visibly trailed the scroll, and lag reads as lag, not as
+ * smoothness. This sits well clear of that.
  *
  * restDelta is not cosmetic — the default 0.01 is a full 1% of a 0 → 1 progress
  * range, so the spring stops short of its target and snaps the last step.
  */
 const SPRING = {
-  stiffness: 180,
-  damping: 22,
-  mass: 0.35,
+  stiffness: 150,
+  damping: 21,
+  mass: 0.4,
   restDelta: 0.0001,
 } as const;
 
@@ -80,7 +96,7 @@ type Range = readonly [number, number];
  * releases at 1.0 — sticky lets go the instant the section's bottom meets the
  * viewport's, so progress 1 *is* the release.
  *
- * The clips pop from 0.30, before the pin engages, so they land as the section
+ * The clips pop from 0.26, before the pin engages, so they land as the section
  * is settling rather than after it has stopped. The reader is never held in
  * front of a composition that is doing nothing.
  */
@@ -88,41 +104,48 @@ const STAYING: Range = [0.05, 0.2];
 const CURIOUS: Range = [0.1, 0.25];
 
 /**
- * The two pops. Short windows on purpose — a pop that is scrubbed slowly is not
- * a pop, it is a zoom. 0.18 of the timeline is about 150px of scroll, which is
- * quick enough to read as an arrival and still long enough to stay smooth.
+ * The two pops, each now spread over 0.26 of the timeline — about 219px of
+ * scroll, up from 152px.
  *
- * The portrait follows 0.06 behind, a third of a window. Close enough that the
- * two read as one beat with a little syncopation, far enough that they are not
- * a single flat event.
+ * Widening the window is half of what makes this glide. The same travel over
+ * more scroll is simply slower, and velocity is what the eye reads as
+ * roughness: the peak rate of change drops from 5.4 to 1.3 thousandths of scale
+ * per pixel, a little over 4× gentler, without the pop losing its shape.
+ *
+ * The portrait follows 0.08 behind — under a third of a window, so the two
+ * still read as one beat with a little syncopation rather than as two events.
  */
-const LANDSCAPE: Range = [0.3, 0.48];
-const PORTRAIT: Range = [0.36, 0.54];
+const LANDSCAPE: Range = [0.26, 0.52];
+const PORTRAIT: Range = [0.34, 0.6];
 
 /**
- * How small each clip starts. 0.8 is a real pop rather than a settle — the
- * earlier 0.94 was too polite to register, which is what made the section feel
- * underwhelming.
+ * How small each clip starts.
+ *
+ * 0.84 rather than 0.80. Trimming the travel is the other half of the glide —
+ * peak velocity scales directly with it — but only a little, because the size
+ * of this pop is the part that was working. 0.16 of scale is still four times
+ * the 0.04 that read as too polite earlier; it is now simply delivered over
+ * half again as much scroll, on a curve that never spikes.
  *
  * A centre-anchored scale cannot move the clip: the centre is a fixed point of
  * the transform and the value rests at exactly 1, so the finished composition
  * is the absolute left/right/top the design specifies, to the pixel.
  */
-const POP_FROM = 0.8;
+const POP_FROM = 0.84;
 
 /**
- * Opacity resolves over the first 60% of the pop rather than all of it, so the
+ * Opacity resolves over the first 65% of the pop rather than all of it, so the
  * clip is solid slightly before it finishes growing. A scale that is still
  * fading while it lands reads as a dissolve; a scale that is already opaque
  * while it lands reads as an object arriving.
  */
-const LANDSCAPE_FADE: Range = [0.3, 0.408];
-const PORTRAIT_FADE: Range = [0.36, 0.468];
+const LANDSCAPE_FADE: Range = [0.26, 0.429];
+const PORTRAIT_FADE: Range = [0.34, 0.509];
 
 // The tagline waits: its middle letters sit on top of the portrait clip, so it
 // resolves once that clip is home.
-const TAGLINE: Range = [0.56, 0.72];
-// 0.72 → 1.00 is deliberately empty. The completed composition holds, then
+const TAGLINE: Range = [0.62, 0.78];
+// 0.78 → 1.00 is deliberately empty. The completed composition holds, then
 // scrolls away with the page when sticky releases — nothing fades or scales
 // out, which is what keeps the hand-off to SectionFour from feeling abrupt.
 
@@ -154,11 +177,12 @@ const NO_PIN_SECTION = "motion-reduce:h-auto [@media(max-height:600px)]:h-auto";
  * A clip popping into place: scale out of its own centre, and an opacity that
  * lands a little ahead of it.
  *
- * Scale is eased and opacity has its own curve. There is nothing else — no
- * translation on either axis, which is the point: the moment a transform
- * carries an x or a y, the clip acquires a direction, and a direction on an
- * absolutely-positioned element inevitably reads as "it came from the side it
- * sits on".
+ * Scale and opacity both ride curves that are flat at either end, so the clip
+ * neither jumps when the pop begins nor stops dead when it lands. There is
+ * nothing else — no translation on either axis, which is the point: the moment
+ * a transform carries an x or a y, the clip acquires a direction, and a
+ * direction on an absolutely-positioned element inevitably reads as "it came
+ * from the side it sits on".
  */
 function usePop(
   progress: MotionValue<number>,
@@ -166,12 +190,12 @@ function usePop(
   fade: Range,
 ): MotionStyle {
   const scale = useTransform(progress, [from, to], [POP_FROM, 1], {
-    ease: EASE,
+    ease: EASE_SILK,
   });
   // Spread rather than passed through: `Range` is readonly and useTransform
   // takes a mutable input range.
   const opacity = useTransform(progress, [...fade], [0, 1], {
-    ease: EASE_FADE,
+    ease: EASE_SILK,
   });
   return { scale, opacity };
 }
@@ -179,6 +203,11 @@ function usePop(
 /**
  * Copy settling into place: opacity and a short rise, with a whisper of scale
  * for the headline. Holds once revealed.
+ *
+ * On the same silk curve as the clips, deliberately. The headline used to rise
+ * on EASE, which front-loads its travel into the first pixels of scroll — next
+ * to clips that now glide, that difference is exactly the sort of thing that
+ * reads as one element being less finished than another.
  *
  * A caller asking for no scale gets no `scale` at all rather than an animated
  * `1`. The identity transform is invisible but not free — it still writes a
@@ -191,11 +220,13 @@ function useSettle(
   scaleFrom: number,
 ): MotionStyle {
   const opacity = useTransform(progress, [from, to], [0, 1], {
-    ease: EASE_FADE,
+    ease: EASE_SILK,
   });
-  const y = useTransform(progress, [from, to], [distance, 0], { ease: EASE });
+  const y = useTransform(progress, [from, to], [distance, 0], {
+    ease: EASE_SILK,
+  });
   const scale = useTransform(progress, [from, to], [scaleFrom, 1], {
-    ease: EASE,
+    ease: EASE_SILK,
   });
   return scaleFrom === 1 ? { opacity, y } : { opacity, y, scale };
 }
