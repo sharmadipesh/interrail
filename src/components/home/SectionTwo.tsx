@@ -83,8 +83,15 @@ const YELLOW: Range = [0.13, 0.95];
  * path's length. Measured from the SVG geometry (every circle lies within 1.4
  * user units of its route), so a stop lights up when the signal actually
  * reaches it rather than on a hand-picked number.
+ *
+ * The upper pair reads lower than it once did because the fraction is of a
+ * longer path, not because the stops moved: yellow now runs grey's full 486.8
+ * units instead of the truncated 394.5, so the same two points — 72.3 and
+ * 234.7 units along — sit earlier in the draw. Re-measure against `D` if a
+ * route is ever re-exported; a stale fraction here shows as a station blooming
+ * off the signal.
  */
-const UPPER_STOPS = [0.183, 0.595] as const;
+const UPPER_STOPS = [0.148, 0.482] as const;
 const LOWER_STOPS = [0.369, 0.686] as const;
 
 /** How long a station takes to bloom once the signal arrives. */
@@ -270,9 +277,12 @@ const SVG_FIT = "xMidYMid slice";
 /**
  * Upper route — enters at the subheading and sweeps down to the right.
  *
- * Note the yellow path is not the grey one: Figma exports it truncated at
- * 331,258, so it covers only 81% of grey's length. Yellow therefore trails
- * permanently, by geometry as well as by timing. Preserved verbatim.
+ * Grey and yellow share one path, as the lower route does, so the signal runs
+ * the whole line and the route finishes fully lit. Figma exported the yellow
+ * truncated at 331,258 — 394.5 of grey's 486.8 units, 81% — which left the last
+ * five segments grey no matter how far you scrolled: not a route still being
+ * drawn but one that stopped short. The lead now comes purely from the
+ * timeline, which is where it was already coming from for most of the draw.
  */
 function UpperRoute({ progress }: { progress: MotionValue<number> }) {
   const uid = useId().replace(/:/g, "");
@@ -281,6 +291,9 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
 
   const grey = useDraw(progress, GREY);
   const yellow = useDraw(progress, YELLOW);
+
+  const D =
+    "M-2.99825 121.684L7.65755 129.585L9.89719 127.666L35.5405 114.981L76.0936 125.134L154.454 180.312L224.941 208.17L231.846 205.349L272.092 208.798L274.014 205.602L278.68 204.7L281.806 207.441L292.788 211.192L325.734 259.608L331.23 258.769L348.062 278.411L354.258 279.295L357.319 282.866L384.816 304.982L404.487 309.804";
 
   return (
     <svg
@@ -292,7 +305,7 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
       className={SVG_CLASS}
     >
       <motion.path
-        d="M-2.99825 121.684L7.65755 129.585L9.89719 127.666L35.5405 114.981L76.0936 125.134L154.454 180.312L224.941 208.17L231.846 205.349L272.092 208.798L274.014 205.602L278.68 204.7L281.806 207.441L292.788 211.192L325.734 259.608L331.23 258.769L348.062 278.411L354.258 279.295L357.319 282.866L384.816 304.982L404.487 309.804"
+        d={D}
         stroke="#AFAFAF"
         // Explicit, like every other route stroke on the page. Left off, this
         // one fell back to SVG's default width of 1 and drew half as heavy as
@@ -304,7 +317,7 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
         style={grey}
       />
       <motion.path
-        d="M-2.9974 121.684L7.65839 129.586L9.89803 127.667L35.5413 114.982L76.0944 125.135L154.455 180.312L224.942 208.171L231.847 205.35L272.093 208.798L274.015 205.603L278.681 204.701L281.807 207.442L292.789 211.192L325.735 259.609L331.231 258.77"
+        d={D}
         stroke="#FFD400"
         strokeWidth="2"
         strokeLinecap="round"
@@ -444,7 +457,8 @@ export default function SectionTwo() {
     // would land on the next section, whose own white background paints after
     // this one and would cover it.
     <div className="relative z-0 bg-white px-6 pb-[30px]">
-      <Reveal className="pt-[120px] text-navy-1 text-center font-sans text-5xl font-semibold tracking-1px leading-[105%]">
+      {/* pt-[120px] */}
+      <Reveal className="pt-20 text-navy-1 text-center font-sans text-5xl font-semibold tracking-1px leading-[105%]">
         One continent.
         <br />
         All yours to
