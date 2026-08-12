@@ -142,9 +142,34 @@ const POP_FROM = 0.84;
 const LANDSCAPE_FADE: Range = [0.26, 0.429];
 const PORTRAIT_FADE: Range = [0.34, 0.509];
 
-// The tagline waits: its middle letters sit on top of the portrait clip, so it
-// resolves once that clip is home.
-const TAGLINE: Range = [0.62, 0.78];
+/**
+ * The tagline waits on the portrait clip, but far less than it used to.
+ *
+ * Four of its ten characters — the "INCE" of SINCE — are white, and they are
+ * only legible because the portrait sits behind them. Their ink runs from 57 to
+ * about 161px across the column and the clip rests at 0 to 159, so they are
+ * backed at rest.
+ *
+ * What makes this variation different from the sliding one is that its clips
+ * never travel: the portrait is at its final x from the first frame and only
+ * grows into place. The right edge is therefore never further left than
+ * `159 - (1-scale)·159/2` — 146px at the pop's smallest, so at worst the last
+ * 15px of the white run is unbacked, not the whole of it. What gates the
+ * tagline here is the clip being *opaque*, and PORTRAIT_FADE has that done by
+ * 0.509.
+ *
+ * 0.62 was well clear of that and read as an afterthought: the pop had finished
+ * and settled before the line began. 0.48 lets it climb alongside the portrait
+ * instead, and modelling the fade against the clip's real scale and opacity
+ * puts the worst perceived gap at 2.2px — identical to what 0.62 produced,
+ * because 2.2px is simply the permanent overhang of the final "E" past the
+ * clip's edge, present at rest in every variant.
+ *
+ * The window is also 0.18 rather than 0.16, which spends the extra room the
+ * earlier start buys: 158px of scroll instead of 140, so the fade resolves
+ * about 12% more gently rather than merely sooner.
+ */
+const TAGLINE: Range = [0.48, 0.66];
 // 0.78 → 1.00 is deliberately empty. The completed composition holds, then
 // scrolls away with the page when sticky releases — nothing fades or scales
 // out, which is what keeps the hand-off to SectionFour from feeling abrupt.
@@ -171,6 +196,37 @@ const HEADING_SCALE = 0.97;
 const STAGE = "pt-7 pb-[158px]";
 
 /**
+ * How far the heading's top sits below the section's, in px.
+ *
+ * Two paddings stand between them and nothing else: the stage's `pt-7` (28px)
+ * and the composition column's `py-[118px]`. Both are fixed px in the design,
+ * so this does not move with the viewport — which is what lets the trigger
+ * below be exact at every height rather than approximately right at one.
+ *
+ * Measured against the rendered section to confirm: heading top at 146px,
+ * clips resting at 80 and 354, section 684.45px. If either padding changes,
+ * this changes with it or the animation starts in the wrong place.
+ */
+const HEADING_TOP = 28 + 118;
+
+/**
+ * Where the heading sits, as a share of the viewport, when the timeline opens.
+ *
+ * 0.9 is 90% from the top — 10% above the fold — so the timeline opens as the
+ * heading's first line crosses into view. This is the one number to move if the
+ * entrance should start earlier or later; everything below is expressed against
+ * it and follows automatically.
+ *
+ * Opening this late costs nothing and gains twice. The heading is 205px tall,
+ * so at 90% its lower half is still under the fold when "Staying" starts — but
+ * it is fully on screen by 14% into the timeline at an 844px viewport, and its
+ * own reveal does not finish until 25%, so the part a reader actually watches
+ * happens in full view. Meanwhile the later trigger lengthens the runway, which
+ * is what makes the pop calmer rather than more hurried.
+ */
+const HEADING_AT = 0.9;
+
+/**
  * How the timeline is anchored with nothing pinned.
  *
  * V2's `["start 0.5", "end end"]` is calibrated against its pin: at 150svh the
@@ -179,14 +235,37 @@ const STAGE = "pt-7 pb-[158px]";
  * 262px at 844 tall, and negative past 1368px, where the timeline would have no
  * length at all.
  *
- * `start 1.15` opens while the section is still below the fold, which is free
- * because nothing is painted before 0.05, and `end 0.8` closes while it is
- * still well up the screen so the composition is whole when the last range
- * lands. Span is `H + 0.35·vh` — 894px at 600 tall to 1174px at 1400, against
- * the 600–1400px the pin gave, so this variation actually gains a little room.
- * Shared with the other two unpinned variants so all three pace alike.
+ * The opening anchor is a point *inside* the section, not its top edge, and
+ * that distinction is the whole of it.
+ *
+ * `start 0.9` would put the section's top at 90% of the viewport — but the
+ * heading is not at the section's top. It sits 146px down it, behind the
+ * stage's `pt-7` and the composition's `py-[118px]`, so `start 0.9` would open
+ * the timeline with the heading at 90% *plus* 146px, and by a different amount
+ * at every viewport height because the 146 is fixed while the 90% is not. The
+ * anchor it replaces was worse still: it opened with the heading around 132%
+ * down, so the pop was already a third spent before the heading was on screen.
+ *
+ * framer resolves an edge given in px against the target rather than the
+ * viewport (`resolveEdge` handles "px" | "%" | "vw" | "vh"), so `"146px 0.9"`
+ * reads as: progress 0 when the point 146px into the section meets 90% of the
+ * viewport. That is the heading's own top, at 90%, exactly — 600px tall or
+ * 1400px tall, the same.
+ *
+ * `end 0.5` closes the timeline as the section's bottom reaches mid-viewport.
+ * Span works out at `0.4·vh + 538`: 778px at 600 tall to 1098px at 1400, and
+ * that is what keeps this smooth. Pinned, this variation ran over exactly one
+ * viewport — 844px on a phone — and the pop's ranges were spaced for that.
+ * 876px here is within 4% of it, so the motion keeps the rate it was tuned at:
+ * peak scale change is 1.29 thousandths per pixel of scroll against the pin's
+ * 1.34, and on a 600px-tall screen it is a third gentler than the pin was.
+ *
+ * The later the trigger, the longer this span becomes — the runway is whatever
+ * lies between the heading arriving and the section clearing the top, so a
+ * heading that starts lower has further to travel. Moving from 80% to 90% added
+ * 84px of it at 844, which is why the pop eased rather than tightened.
  */
-const FLOW_OFFSET = ["start 1.15", "end 0.8"] as const;
+const FLOW_OFFSET = [`${HEADING_TOP}px ${HEADING_AT}`, "end 0.5"] as const;
 
 /**
  * A clip popping into place: scale out of its own centre, and an opacity that

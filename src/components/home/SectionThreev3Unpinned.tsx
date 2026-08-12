@@ -171,13 +171,52 @@ const PORTRAIT: Range = [0.39, 0.68];
 const LANDSCAPE_FADE: Range = [0.31, 0.4];
 const PORTRAIT_FADE: Range = [0.39, 0.49];
 
-// The tagline waits: its middle letters sit on top of the portrait clip, so it
-// resolves only once that clip is essentially home — at 0.64 the portrait has
-// covered better than 99% of its track.
-const TAGLINE: Range = [0.64, 0.82];
-// 0.82 → 1.00 is deliberately empty. The completed composition holds, then
-// scrolls away with the page when sticky releases — nothing fades or scales
-// out, which is what keeps the hand-off to SectionFour from feeling abrupt.
+/**
+ * The tagline waits on the portrait clip, and this is how long it actually has
+ * to wait.
+ *
+ * Four of its ten characters — the "INCE" of SINCE — are white, and they are
+ * only legible because the portrait clip sits behind them. Measured against the
+ * rendered composition, their ink runs from 57 to about 161px across the
+ * column, and the clip rests at 0 to 159. So they are backed at rest — but the
+ * clip arrives from the *left*, which means its right edge reaches them only
+ * near the end of its own travel, and later on a wide screen than a narrow one
+ * because the travel is measured in vw:
+ *
+ *   390px wide   backed from p=0.540
+ *   768px        p=0.563
+ *   1024px       p=0.571
+ *   1440px       p=0.581   <- the constraint
+ *
+ * Resolve the tagline before that and the failure is not a flash: white type on
+ * a white page is simply absent, so the line reads "S···1959" with a hole in it
+ * while the navy characters fade up around it.
+ *
+ * 0.64 was clear of that by a wide margin and read as an afterthought — the
+ * clips had finished and settled before it began. 0.54 is the earliest start
+ * that is still safe: the fade is only 7.1% resolved at p=0.581, faint enough
+ * that the gap cannot be read, and from there it climbs with the portrait
+ * rather than after it. Below this it stops being safe — 0.52 would be 24%
+ * opaque with the letters still unbacked.
+ *
+ * The window is 0.22 rather than the 0.18 it started at, and the extra room
+ * goes into the fade rather than being banked. The curve needed nothing: this
+ * line already resolves on EASE_SETTLE, flat at both ends and peaking at 1.83
+ * against a hard ease-out's 4.08, so unlike the centre-split variation's it was
+ * never switching on. Length was the only lever left, and it pays three ways at
+ * once — the fade runs over 211px of scroll instead of 173, which is 18%
+ * gentler; the line is 7.1% opaque when the clip finishes backing the white
+ * letters instead of 10.7%, widening the margin on the constraint above; and
+ * the dead tail after it shrinks from 28% of the timeline to 24%.
+ *
+ * Past this it stops paying. The white letters cannot be substantially visible
+ * before 0.581 whatever the window, so stretching further would only delay the
+ * point where the line reads as present — which is what was wrong with 0.64.
+ */
+const TAGLINE: Range = [0.54, 0.76];
+// 0.76 → 1.00 is deliberately empty. The completed composition holds and then
+// simply scrolls on with the page — nothing fades or scales out, which is what
+// keeps the hand-off to SectionFour from feeling abrupt.
 
 /**
  * The settle each clip carries alongside its travel: a whisper of scale and a
@@ -215,6 +254,28 @@ const HEADING_SCALE = 0.985;
 const STAGE = "pt-7 pb-[158px]";
 
 /**
+ * How far the heading's top sits below the section's, in px.
+ *
+ * Two paddings stand between them and nothing else: the stage's `pt-7` (28px)
+ * and the composition column's `py-[118px]`. Both are fixed px in the design,
+ * so this does not move with the viewport — which is what lets the trigger
+ * below be exact at every height rather than approximately right at one.
+ *
+ * Measured against the rendered section to confirm: heading top at 146px,
+ * clips resting at 80 and 354, section 684.45px.
+ */
+const HEADING_TOP = 28 + 118;
+
+/**
+ * Where the heading sits, as a share of the viewport, when the timeline opens.
+ *
+ * 0.9 is 90% from the top — 10% above the fold — so the timeline opens as the
+ * heading's first line crosses into view. The one number to move if the
+ * entrance should start earlier or later.
+ */
+const HEADING_AT = 0.9;
+
+/**
  * Where the travel is switched off. This is the half of the original's
  * `NO_PIN_SECTION` that has nothing to do with pinning, so it survives intact.
  *
@@ -239,14 +300,43 @@ const TRAVEL_OFF =
  * content — a fixed 684px — and that offset would span `684 - 0.5·vh`: 262px at
  * 844 tall, and negative past 1368px, where it would have no length at all.
  *
- * Span here is `H + 0.35·vh`, 894px to 1174px. That matters more for this
- * variation than the others because its travel is measured in vw while the
- * timeline is measured in px: the visible glide — the last 9.4vw, after the
- * front-loaded curve has spent 84.4% of the distance off-screen — comes out at
- * 0.19 px/px on a phone and 0.68 px/px at 1440, against 0.15 and 0.54 pinned.
- * Fractionally quicker, nowhere near the 4.4 px/px a collapsed timeline gives.
+ * The opening anchor is a point *inside* the section, not its top edge.
+ *
+ * `start 0.9` would put the section's top at 90% of the viewport — but the
+ * heading is not at the section's top. It sits 146px down it, behind the
+ * stage's `pt-7` and the composition's `py-[118px]`, so `start 0.9` would open
+ * the timeline with the heading at 90% *plus* 146px, and by a different amount
+ * at every viewport height because the 146 is fixed while the 90% is not. The
+ * anchor it replaces opened with the heading around 132% down — the clips were
+ * already setting off before the heading they answer to was on screen.
+ *
+ * framer resolves an edge given in px against the target rather than the
+ * viewport (`resolveEdge` handles "px" | "%" | "vw" | "vh"), so `"146px 0.9"`
+ * reads as: progress 0 when the point 146px into the section meets 90% of the
+ * viewport. That is the heading's own top, at 90%, exactly, at any height.
+ *
+ * ── Why this one closes at 0.4 and its two siblings close at 0.5 ────────────
+ *
+ * Span here is `0.5·vh + 538`: 838px at 600 tall to 1238px at 1400. The other
+ * unpinned variants end at 0.5 and take `0.4·vh + 538`, and copying that here
+ * would have been the tidy thing to do and the wrong one.
+ *
+ * This variation is the only one whose travel is measured in vw while its
+ * timeline is measured in px, so shortening the span speeds the slide up in a
+ * way a scale or a fade would not feel. The number that matters is the visible
+ * glide — the last 9.4vw, after the front-loaded curve has spent 84.4% of the
+ * distance off-screen behind opacity 0. Measured at 1440x900, the widest case
+ * that still slides:
+ *
+ *   pinned                 0.54 px/px
+ *   end 0.5, as siblings   0.75 px/px   <- 39% quicker than pinned
+ *   end 0.4, as here       0.68 px/px
+ *
+ * 0.4 gives back the ~90px of span the later trigger costs, and holds the glide
+ * exactly where it already was. Consistency between the three files is worth
+ * less than the two of them moving at the same speed.
  */
-const FLOW_OFFSET = ["start 1.15", "end 0.8"] as const;
+const FLOW_OFFSET = [`${HEADING_TOP}px ${HEADING_AT}`, "end 0.4"] as const;
 
 /**
  * A clip riding one of the two tracks.

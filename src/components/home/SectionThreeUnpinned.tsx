@@ -82,10 +82,31 @@ const CURIOUS: Range = [0.09, 0.23];
 // gathered at its centre, but nothing has started separating yet.
 const LANDSCAPE: Range = [0.34, 0.58];
 const PORTRAIT: Range = [0.4, 0.66];
-// The tagline waits: its middle letters sit on top of the portrait clip, so it
-// can only resolve once that clip is essentially home — at 0.65 the portrait is
-// 96% of the way there.
-const TAGLINE: Range = [0.65, 0.84];
+/**
+ * The tagline waits on the portrait clip, and of the three variations this one
+ * has to wait least.
+ *
+ * Four of its ten characters — the "INCE" of SINCE — are white, legible only
+ * because the portrait sits behind them. Their ink runs 57 to about 161px
+ * across the column against a clip resting at 0 to 159.
+ *
+ * Here the clip does not slide in from one side; it separates out of the
+ * heading's centre, which means it approaches the tagline's line from above and
+ * to the right and sweeps down across it. Modelled against the real split
+ * vectors, it is already covering the white run completely by p=0.44 and fully
+ * opaque by 0.51 — far earlier than the sliding variation manages, where the
+ * whole run stays bare until 0.58.
+ *
+ * 0.65 was therefore not protecting anything by the end; it simply landed after
+ * the composition had finished and read as an afterthought. 0.52 starts while
+ * the portrait is still settling, so the line resolves as part of the same
+ * movement, and the worst perceived gap stays at 2.2px — the permanent
+ * overhang of the final "E" past the clip, present at rest in every variant.
+ *
+ * The window is 0.21 rather than 0.19, spending some of the room the earlier
+ * start buys on a longer fade rather than banking all of it.
+ */
+const TAGLINE: Range = [0.52, 0.73];
 // 0.84 → 1.00 is deliberately empty. The completed composition holds and then
 // simply scrolls on with the page — nothing fades or scales out, which is what
 // keeps the hand-off to SectionFour from feeling abrupt. Unpinned it holds for
@@ -162,6 +183,30 @@ const PORTRAIT_SPLIT: Split = {
 const STAGE = "pt-7 pb-[158px]";
 
 /**
+ * How far the heading's top sits below the section's, in px.
+ *
+ * Two paddings stand between them and nothing else: the stage's `pt-7` (28px)
+ * and the composition column's `py-[118px]`. Both are fixed px in the design,
+ * so this does not move with the viewport — which is exactly what lets the
+ * trigger below be exact at every height rather than approximately right at one.
+ *
+ * Measured against the rendered section to confirm: heading top at 146px,
+ * clips resting at 80–186 and 354–553, tagline at 375–408. If either padding
+ * changes, this changes with it or the animation starts in the wrong place.
+ */
+const HEADING_TOP = 28 + 118;
+
+/**
+ * Where the heading sits, as a share of the viewport, when the timeline opens.
+ *
+ * 0.8 is 80% from the top — 20% above the fold — so the heading has just come
+ * into view and is still low on the screen when "Staying" begins to resolve.
+ * This is the one number to move if the entrance should start earlier or later;
+ * everything below is expressed against it.
+ */
+const HEADING_AT = 0.8;
+
+/**
  * How the timeline is anchored once nothing is pinned, and why it could not be
  * left as it was.
  *
@@ -173,18 +218,32 @@ const STAGE = "pt-7 pb-[158px]";
  * ranges below were spaced for, and it goes *negative* past 1368px tall, where
  * the timeline would have no length at all.
  *
- * Starting above the fold and ending high fixes both halves of it. `start 1.15`
- * opens the timeline while the section is still below the viewport — legal, and
- * free, because every range starts at 0.04 or later and nothing is painted at
- * 0 — which buys back the scroll the pin used to supply. `end 0.8` closes it
- * while the section is still well up the screen, so the composition is whole
- * and on screen when the last range lands rather than half gone.
+ * The opening anchor is a point *inside* the section, not its top edge, and
+ * that distinction is the whole fix.
  *
- * Span is `H + 0.35·vh`: 894px at 600 tall through 1174px at 1400, against the
- * 840–1960px the pin gave. Comparable, and never zero. The same offset serves
- * all three unpinned variants, so they pace alike.
+ * `start 0.8` would put the section's top at 80% of the viewport — but the
+ * heading is not at the section's top. It sits 146px down it, behind the
+ * stage's `pt-7` and the composition's `py-[118px]`, so `start 0.8` would open
+ * the timeline with the heading at 80% *plus* 146px, and by a different amount
+ * at every viewport height because the 146 is fixed while the 80% is not.
+ *
+ * framer resolves an edge given in px against the target rather than the
+ * viewport (`resolveEdge` handles "px" | "%" | "vw" | "vh"), so `"146px 0.8"`
+ * reads as: progress 0 when the point 146px into the section meets 80% of the
+ * viewport. That is the heading's own top, at 80%, exactly — 600px tall or
+ * 1400px tall, the same. See HEADING_TOP for where the 146 comes from.
+ *
+ * `end 0.5` closes the timeline as the section's bottom reaches mid-viewport.
+ * Span works out at `0.3·vh + 538`: 718px at 600 tall to 958px at 1400.
+ *
+ * Opening later is what pays for that. The runway is whatever lies between the
+ * trigger and the section clearing the top of the screen, so a heading that
+ * starts lower has further to travel — moving the trigger from 60% to 80% adds
+ * roughly 170px of it at an 844px viewport, and the sequence gets more room
+ * rather than less. It also widens the window in which the finished
+ * composition is framed whole, which is where the clips land.
  */
-const FLOW_OFFSET = ["start 1.15", "end 0.8"] as const;
+const FLOW_OFFSET = [`${HEADING_TOP}px ${HEADING_AT}`, "end 0.5"] as const;
 
 /**
  * Rises and resolves out of a light blur. Holds once revealed.
@@ -199,8 +258,22 @@ function useReveal(
   [from, to]: Range,
   distance: number,
   blur: number,
+  /**
+   * Curve for the fade alone. Defaults to EASE, which is right for the heading
+   * — it rises out of a mask, so a front-loaded opacity is hidden behind the
+   * travel and never reads on its own.
+   *
+   * The tagline has no mask and nothing else to look at, so there the default
+   * is the wrong one for exactly the reason EASE_FADE is documented above: a
+   * hard ease-out is 77% opaque a quarter of the way through, which lands as a
+   * switch rather than a fade. Passing EASE_FADE brings this line into step
+   * with the same line in the other two variations, which already fade gently.
+   */
+  fadeEase: typeof EASE = EASE,
 ): MotionStyle {
-  const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
+  const opacity = useTransform(progress, [from, to], [0, 1], {
+    ease: fadeEase,
+  });
   const y = useTransform(progress, [from, to], [distance, 0], { ease: EASE });
   const blurPx = useTransform(progress, [from, to], [blur, 0], { ease: EASE });
   const filter = useMotionTemplate`blur(${blurPx}px)`;
@@ -351,7 +424,7 @@ export default function SectionThreeUnpinned() {
   const portrait = useCenterSplit(progress, PORTRAIT, PORTRAIT_SPLIT);
   // Grouped, not per-character: at this tracking a character flick reads as
   // noise against the clip behind it. The white/navy split is untouched.
-  const tagline = useReveal(progress, TAGLINE, 14, 0);
+  const tagline = useReveal(progress, TAGLINE, 14, 0, EASE_FADE);
 
   return (
     // Three things made the pin, and all three are gone: the section's
