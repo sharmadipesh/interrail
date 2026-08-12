@@ -23,6 +23,7 @@ module.exports = {
         sans: ["var(--font-poppins)", "system-ui", "sans-serif"],
         mono: ["var(--font-roboto-mono)", "ui-monospace", "monospace"],
         departure: ['"Departure Mono"', "monospace"],
+        gveret: ['"Gveret Levin"', "cursive"],
       },
       fontSize: {
         // Hero headline — Molitor Display Bold (Figma spec)

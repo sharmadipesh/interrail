@@ -144,7 +144,7 @@ export default function SectionEle() {
   const head = useDraw(progress, HEAD);
 
   return (
-    <section className="bg-white px-6 py-24">
+    <section className="bg-white px-6 py-12">
       <motion.div
         variants={shell}
         initial={reduce ? "show" : "hidden"}
@@ -203,7 +203,7 @@ export default function SectionEle() {
         >
           <span aria-hidden>
             <span className="text-[#0F141C]/50">Trustpilot</span>
-            {`  4.7 i  5    72K reviews`}
+            <span className="font-gveret">{`  4.7 i  5    72K reviews`}</span>
           </span>
         </motion.p>
 

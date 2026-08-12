@@ -275,6 +275,29 @@ const SVG_CLASS = "absolute inset-0 h-full w-full";
 const SVG_FIT = "xMidYMid slice";
 
 /**
+ * The unlit part of the route — the track the signal has yet to reach.
+ *
+ * Walked up from the design's #AFAFAF (2.19:1 against white) through #C4C4C4
+ * and #D4D4D4 to here. #E5E5E5 is Tailwind's neutral-200 and the grey the
+ * inactive pagination dots elsewhere on the page are already drawn in, so the
+ * faintest thing on screen is at least one consistent value rather than two
+ * near-misses.
+ *
+ * Named because both routes draw it: as two literals the pair drifted apart
+ * once already — the upper route's grey tail was left without an explicit
+ * stroke width and rendered at half the weight of everything around it.
+ *
+ * At 1.26:1 this is deliberately at the edge of visible, and that is a choice
+ * with a cost worth stating: the unlit track is what the yellow reads *against*,
+ * so on a dim or glare-lit screen the draw now lands closer to a line appearing
+ * out of nothing than to one filling in. It is defensible only because both
+ * SVGs are `aria-hidden` and carry nothing the copy does not — no information
+ * is lost if a reader never resolves the grey at all. Do not reuse this value
+ * for anything load-bearing, which would need 3:1.
+ */
+const ROUTE_GREY = "#E5E5E5";
+
+/**
  * Upper route — enters at the subheading and sweeps down to the right.
  *
  * Grey and yellow share one path, as the lower route does, so the signal runs
@@ -306,7 +329,7 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
     >
       <motion.path
         d={D}
-        stroke="#AFAFAF"
+        stroke={ROUTE_GREY}
         // Explicit, like every other route stroke on the page. Left off, this
         // one fell back to SVG's default width of 1 and drew half as heavy as
         // the yellow it continues from — and as both of the lower route's
@@ -397,7 +420,7 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
     >
       <motion.path
         d={D}
-        stroke="#AFAFAF"
+        stroke={ROUTE_GREY}
         strokeWidth="2"
         strokeLinecap="round"
         style={grey}
