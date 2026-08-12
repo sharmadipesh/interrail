@@ -43,13 +43,60 @@ const MARKER = 10;
 const MARKER_STOP = SINCE_MID - MARKER / 2;
 
 /**
- * Where the trace begins: inside the wordmark's 41-space hollow, which runs from
- * roughly 88px to 326px down the column. Starting at 92 keeps the line clear of
- * "Effect" above it, and it ends on the marker, so the signal appears to have
- * drawn it.
+ * Where the two words' glyphs actually start and finish in the column.
+ *
+ * Measured with a Range over each run in the rendered wordmark, not estimated.
+ * The earlier figures — 111 and 355 — were both out by about 18px, and it is
+ * worth being precise here because the line has to meet these edges exactly.
  */
-const TRACE_TOP = 92;
-const TRACE_H = SINCE_MID - TRACE_TOP;
+const EFFECT_END = 93.11;
+const INTERRAIL_TOP = 336.93;
+
+/**
+ * The shared centre line, taken from the year's glyphs rather than any box.
+ *
+ * Three different centres are in play: the 22px band's box centre is 14.52, the
+ * wordmark's ink sits on 12.59, and "SINCE 1959" — being all caps and figures,
+ * which ride above the em centre — inks on 14.36. The marker comes to rest
+ * inside the band, so that is where a misalignment is actually seen: at 12 it
+ * sat 2.36px left of the year and read as off-centre against the plate.
+ *
+ * The line has to share the axis or the marker would step off its own path on
+ * the way down. Referred to the wordmark that leaves the line 1.77px off, but
+ * the line meets those words end-on across a 21px mass of ink, where it does
+ * not show — the dot on a 22px plate does.
+ */
+const AXIS = 14.36;
+const TRACE_W = 2;
+
+/**
+ * The route line — two segments, one either side of the year.
+ *
+ * The hollow between the two words is 93 → 337, and the SINCE band takes
+ * 118.07 → 310.07 of it, so only about 25px at each end is free.
+ *
+ * A single line spanning the hollow lays 96px of yellow rule straight across the
+ * year, and because the year is set rotated, a vertical rule reads as a
+ * horizontal strike through "1959". Painting it behind the type does not help:
+ * the glyphs stop being sliced, but the line is still plainly crossing them for
+ * the third of a second before the plate opens.
+ *
+ * So the line stops at the band and picks up again underneath it. The marker
+ * covers the gap alone and comes to rest on the year — the route runs into the
+ * station, the station lights up, the route leaves. Nothing crosses the type,
+ * and the two segments come out within a pixel of the same length.
+ */
+const TRACE_A_TOP = EFFECT_END - 1;
+const TRACE_A_H = SINCE_TOP - TRACE_A_TOP;
+
+/** Both ends stop flush against the words — a pixel inside, so they read as
+ *  growing out of the type rather than floating in the gap beneath it. */
+const TRACE_B_TOP = SINCE_TOP + SINCE_H;
+const TRACE_B_H = INTERRAIL_TOP - TRACE_B_TOP;
+
+/** Pacing waypoint, not a boundary: where the marker hands over from its
+ *  accelerating fall to the eased run-in. */
+const MARKER_RUNIN = 111;
 
 /**
  * Far enough above the column to clear the top of any viewport up to ~1980px
@@ -122,7 +169,7 @@ const wordmark: Variants = {
 const markerTravel: Variants = {
   rest: { y: MARKER_START, opacity: 0 },
   play: {
-    y: [MARKER_START, TRACE_TOP, MARKER_STOP, MARKER_STOP],
+    y: [MARKER_START, MARKER_RUNIN, MARKER_STOP, MARKER_STOP],
     opacity: 1,
     transition: {
       y: {
@@ -159,12 +206,36 @@ const markerScale: Variants = {
   },
 };
 
-/** Drawn from the top down, finishing exactly where the marker comes to rest. */
-const trace: Variants = {
+/**
+ * Both segments draw downward, in the marker's direction of travel.
+ *
+ * The approach lands at 0.90s — the moment the marker reaches its stop — so the
+ * signal still appears to be drawing the line ahead of itself. It covers 26px in
+ * 0.40s where the old single draw covered 122 in 0.34, about 65px/s against 360,
+ * and that alone is most of the extra smoothness.
+ *
+ * The departure leaves as the plate opens, so the line emerges from under a band
+ * that is already lighting up, and is home at 1.26 — a beat before the 1.30
+ * handoff rather than racing it.
+ */
+const TRACE_A_DELAY = 0.5;
+const TRACE_A_DUR = 0.4;
+const TRACE_B_DELAY = 0.9;
+const TRACE_B_DUR = 0.36;
+
+const traceIn: Variants = {
   rest: { scaleY: 0 },
   play: {
     scaleY: 1,
-    transition: { duration: 0.34, delay: 0.56, ease: EASE },
+    transition: { duration: TRACE_A_DUR, delay: TRACE_A_DELAY, ease: EASE },
+  },
+};
+
+const traceOut: Variants = {
+  rest: { scaleY: 0 },
+  play: {
+    scaleY: 1,
+    transition: { duration: TRACE_B_DUR, delay: TRACE_B_DELAY, ease: EASE },
   },
 };
 
@@ -260,6 +331,30 @@ export default function Loader({ onReveal }: { onReveal?: () => void }) {
           </p>
         </motion.div>
 
+        {/* Route trace — 2px, on the marker's own axis. Two segments that stop
+            either side of the year rather than one rule crossing it; see the
+            geometry note above for why the middle has to stay clear. */}
+        <motion.span
+          variants={traceIn}
+          style={{
+            top: TRACE_A_TOP,
+            height: TRACE_A_H,
+            left: AXIS - TRACE_W / 2,
+            width: TRACE_W,
+          }}
+          className="absolute block origin-top bg-brand-yellow"
+        />
+        <motion.span
+          variants={traceOut}
+          style={{
+            top: TRACE_B_TOP,
+            height: TRACE_B_H,
+            left: AXIS - TRACE_W / 2,
+            width: TRACE_W,
+          }}
+          className="absolute block origin-top bg-brand-yellow"
+        />
+
         {/* Navy "SINCE 1959" — the resting state, and the bottom of the three
             stacked layers. It is never animated or faded: the plate above it
             covers it, which is why the two copies can never drift apart. */}
@@ -292,20 +387,12 @@ export default function Loader({ onReveal }: { onReveal?: () => void }) {
           </p>
         </motion.div>
 
-        {/* Route trace — 2px, on the marker's own axis, confined to the hollow
-            between "Effect" and "The Interrail" so it never crosses the
-            wordmark it is there to support. */}
-        <motion.span
-          variants={trace}
-          style={{ top: TRACE_TOP, height: TRACE_H }}
-          className="absolute left-[11px] block w-[2px] origin-top bg-brand-yellow"
-        />
-
         {/* The signal. Travel and scale are separate layers — one transform
             each — so the arrival pulse cannot disturb the descent. */}
         <motion.span
           variants={markerTravel}
-          className="absolute left-[7px] top-0 block size-[10px]"
+          style={{ left: AXIS - MARKER / 2 }}
+          className="absolute top-0 block size-[10px]"
         >
           <motion.span variants={markerScale} className="block size-full">
             <Image
