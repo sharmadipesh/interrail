@@ -17,6 +17,7 @@ module.exports = {
           DEFAULT: "#140A33",
           deep: "#1B2040",
           1: "#140A33",
+          2: "#0F141C",
         },
       },
       fontFamily: {

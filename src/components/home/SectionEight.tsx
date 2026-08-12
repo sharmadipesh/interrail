@@ -205,7 +205,7 @@ export default function SectionEight() {
       <div aria-hidden className="absolute inset-0 bg-black/10" />
 
       {/* Filmstrip */}
-      <div className="absolute left-8 top-px h-[692.5px] w-[137.07px] overflow-hidden bg-navy-1">
+      <div className="absolute left-8 top-px h-[692.5px] w-[137.07px] overflow-hidden bg-navy-2">
         {/* The film base is flat #140A33 — sampling the design's gutters and
             margins returns that colour throughout, so the dust-and-scratch
             texture that sits over it there reads as nothing on screen. */}
@@ -220,7 +220,7 @@ export default function SectionEight() {
                   key={i}
                   aria-hidden={duplicate || undefined}
                   style={{ top: `${-9.21 + i * FRAME_PITCH}px` }}
-                  className="absolute left-[9.21px] h-[147.3px] w-[116.61px] overflow-hidden bg-navy-1"
+                  className="absolute left-[9.21px] h-[147.3px] w-[116.61px] overflow-hidden bg-navy-2"
                 >
                   <Image
                     fill
@@ -247,11 +247,7 @@ export default function SectionEight() {
         <h2 className="font-sans text-5xl font-semibold leading-[49.099px] tracking-[-1.0229px] text-white">
           {HEADING_LINES.map((line, i) => (
             <span key={line} className="block overflow-hidden">
-              <motion.span
-                custom={i}
-                variants={headingLine}
-                className="block"
-              >
+              <motion.span custom={i} variants={headingLine} className="block">
                 {line}
               </motion.span>
             </span>
