@@ -38,6 +38,7 @@ module.exports = {
         "1px": "-1px",
         "2px": "-0.2px",
         "3px": "-3px",
+        14: "0.14px",
         16: "0.16px",
         hero: "-0.44px",
         lead: "1px",

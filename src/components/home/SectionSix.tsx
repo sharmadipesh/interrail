@@ -9,6 +9,8 @@ import {
   useReducedMotion,
   type Variants,
 } from "framer-motion";
+import { RiArrowRightLine } from "react-icons/ri";
+import { useTouchPulse } from "@/components/generic/useTouchPulse";
 
 // Premium ease-out — smooth, no bounce. Matches the rest of the page.
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -30,22 +32,22 @@ const PASSES: Pass[] = [
     kicker: "GLOBAL PASS . MOST CHOSEN",
     title: "7 travel days",
     badge: "MOST CHOSEN",
-    desc: "Room for six to eight cities in one month. The one most people wish they had bought.",
+    desc: "Seven days, six to eight cities, one month to see them. Our most popular Pass.",
     price: "€286",
   },
   {
     marker: "ring",
     kicker: "GLOBAL PASS",
     title: "5 travel days",
-    desc: "Room for four to six cities in one month. The classic first Interrail.",
+    desc: "Five travel days, anywhere in the month. Good for four to six cities. A classic first-time pick.",
     price: "€239",
   },
   {
     marker: "ring",
     kicker: "ONE COUNTRY PASS",
-    title: "One country, in depth",
-    desc: "Italy, France, Spain and thirty more. Shorter trips, smaller price.",
-    link: "See One Country prices",
+    title: "One country in one month",
+    desc: "Go all in on one country. Come back feeling like a local. ",
+    link: "See One Country Prices",
   },
 ];
 
@@ -309,7 +311,8 @@ function PassCard({ pass, reduce }: { pass: Pass; reduce: boolean }) {
   return (
     <motion.article
       variants={cardIn}
-      className="flex w-[320px] shrink-0 items-start gap-[15px]"
+      className="flex w-[310px] shrink-0 items-start gap-[15px]"
+      // className="flex w-[320px] shrink-0 items-start gap-[15px]"
     >
       <Marker variant={pass.marker} reduce={reduce} />
 
@@ -441,7 +444,11 @@ function PassCard({ pass, reduce }: { pass: Pass; reduce: boolean }) {
 export default function SectionSix() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
   const reduce = !!useReducedMotion();
+  // Plays the CTA's hover cue on a timer where hover does not exist, so the
+  // underline and arrow still say "this is a control" on a touch screen.
+  const ctaPulse = useTouchPulse(ctaRef, reduce);
 
   const x = useMotionValue(0);
   const [index, setIndex] = useState(0);
@@ -530,7 +537,7 @@ export default function SectionSix() {
   const canDrag = maxDrag > 0;
 
   return (
-    <section className="bg-white pt-12 pb-[108px]">
+    <section className="bg-white pt-8 pb-[96px]">
       <motion.div
         variants={shell}
         initial={reduce ? "show" : "hidden"}
@@ -550,7 +557,7 @@ export default function SectionSix() {
 
         <motion.p
           variants={blurUp}
-          className="mt-5 px-6 text-center font-sans text-base font-normal leading-[126%] tracking-16 text-navy-1"
+          className="mt-6 px-6 text-center font-sans text-base font-normal leading-[126%] tracking-16 text-navy-1"
         >
           Pick a Pass type and how many days you
           <br />
@@ -560,7 +567,7 @@ export default function SectionSix() {
         </motion.p>
 
         {/* Pass strip — drag to scrub, snaps to the nearest card on release */}
-        <div className="mt-11">
+        <div className="mt-8">
           {/* The padding lives inside the clipper, not outside it. `overflow`
               clips at the padding box, so these 20px are what give the marker
               ripple room to expand — flush against the track it lost 7px off
@@ -600,7 +607,7 @@ export default function SectionSix() {
             footer land where the design puts them. */}
         <motion.div
           variants={paginationIn}
-          className="mt-[18px] flex justify-center gap-[3.5px]"
+          className="mt-5 flex justify-center gap-[3.5px]"
         >
           {PASSES.map((pass, i) => {
             const active = i === index;
@@ -646,25 +653,41 @@ export default function SectionSix() {
         </motion.div>
 
         {/* Footer */}
-        <div className="mt-[27px] px-6 text-center">
-          <motion.button
-            variants={ctaIn}
-            type="button"
-            whileHover={reduce ? undefined : { y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="group relative font-sans text-base font-semibold leading-[1.4] text-navy-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
-          >
-            Compare all Passes
-            <span
-              aria-hidden
-              className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100"
-            />
-          </motion.button>
+        <div className="mt-8 px-6 text-center">
+          <motion.div variants={ctaIn} className="flex justify-center mt-6">
+            <motion.button
+              ref={ctaRef}
+              type="button"
+              // Present only on hover-less devices, and only while the button is
+              // on screen. Everywhere else it is absent and the selectors below
+              // never match, so a pointer keeps the plain hover behaviour.
+              data-pulse={ctaPulse ? "on" : undefined}
+              whileHover={reduce ? undefined : { y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              className="group relative flex items-center gap-1 text-navy font-sans text-base font-semibold leading-[160%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
+            >
+              <span>Compare all Passes</span>
+              {/* Hover motion is CSS and gated to devices that actually hover, so
+                it cannot stick on a touch screen after a tap. The data-pulse
+                selector is the same move on the same transition, for the touch
+                screens the hover query deliberately excludes. */}
+              <RiArrowRightLine
+                aria-hidden
+                className="h-6 text-navy transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
+              />
+              {/* The page's shared underline idiom — the same one the pass
+                  links above use, so the section's two link styles agree. */}
+              <span
+                aria-hidden
+                className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 group-data-[pulse=on]:scale-x-100"
+              />
+            </motion.button>
+          </motion.div>
 
           <motion.p
             variants={footerIn}
-            className="mt-[17px] font-departure text-xs uppercase leading-[18px] tracking-[0.72px] text-[#AFAFAF]"
+            className="mt-8 font-departure text-xs uppercase leading-[18px] tracking-[0.72px] text-[#AFAFAF]"
           >
             REFUNDABLE 7 DAYS{" "}
             <motion.span

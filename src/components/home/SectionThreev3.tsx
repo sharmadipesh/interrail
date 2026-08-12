@@ -413,23 +413,28 @@ export default function SectionThreeV3() {
    * path. The extended scroll distance and the travel distance are both removed
    * in CSS, not here.
    *
-   * `hydrated` is what keeps that swap legal, and it is not ceremony.
-   * `useReducedMotion` reads the media query *during render* — it is
-   * `useState(prefersReducedMotion.current)` over a value initialised on first
-   * call — so on a machine with Reduce Motion enabled it returns true on the
-   * client's very first render while the server, having no media query,
-   * rendered false. Branching straight off it therefore hands React a different
-   * `style` attribute than the server sent: the server emits
-   * `opacity:0; translateX(…*1); scale(0.97)` and the client hydrates wanting
-   * `opacity:1; translateX(…*0); scale(1)`. React does not patch attribute
-   * mismatches, so that is exactly the "attributes of the server rendered HTML
-   * didn't match the client properties. This won't be patched up" tree error,
-   * on both clips and every line of copy at once.
+   * `hydrated` is what keeps that swap legal. `useReducedMotion` reads the
+   * media query *during render* — it is `useState(prefersReducedMotion.current)`
+   * over a ref that `initPrefersReducedMotion()` fills on first call, and the
+   * module's own comment notes it "Returns `null` server-side". So on a machine
+   * with Reduce Motion enabled it returns true on the client's very first
+   * render while the server rendered null. Branching straight off it would hand
+   * React a different `style` attribute than the server sent — the server
+   * emitting `opacity:0; translateX(…*1); scale(0.97)` against a client that
+   * wants `opacity:1; translateX(…*0); scale(1)` — and React does not patch
+   * attribute mismatches.
    *
-   * Gated on mount, the first client render is byte-identical to the server's
-   * and the swap happens in the commit immediately after — before paint, via
-   * the layout effect, so Reduce Motion still gets the instant, un-animated
-   * composition it asks for rather than a flash of the un-started one.
+   * Gated on mount, the first client render is identical to the server's
+   * whatever the media query says, and the swap happens in the commit
+   * immediately after — before paint, via the layout effect, so Reduce Motion
+   * still gets the instant, un-animated composition it asks for rather than a
+   * flash of the un-started one.
+   *
+   * Worth knowing what this is *not*: it did not cause the hydration error seen
+   * during development, which was a stale dev bundle — the server was still
+   * rendering the previous variation's `h-[150svh]` and `scale(0.84)` against a
+   * client that had this one. That is cured by restarting the dev server, not
+   * in code. This guard is for the real, quieter case.
    */
   const settled = useMotionValue(1);
   const reduce = useReducedMotion();

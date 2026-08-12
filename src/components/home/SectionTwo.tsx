@@ -482,7 +482,7 @@ export default function SectionTwo() {
         <div
           ref={upperRef}
           aria-hidden
-          className="pointer-events-none absolute -left-6 -right-6 -top-[230px] -z-10 h-[432px]"
+          className="pointer-events-none absolute -left-6 -right-6 -top-[213px] -z-10 h-[432px]"
         >
           <div className="relative mx-auto h-full w-full max-w-md">
             <UpperRoute progress={upperProgress} />

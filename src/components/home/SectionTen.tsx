@@ -703,7 +703,7 @@ export default function SectionTen() {
             variants={paginationIn}
             initial={reduce ? "show" : "hidden"}
             animate={sectionInView || reduce ? "show" : "hidden"}
-            className="mt-[42px] flex items-center gap-[8.76px] px-6"
+            className="mt-[42px] flex items-center justify-center gap-[8.76px] px-6"
           >
             {STORIES.map((story, i) => {
               const current = i === active;

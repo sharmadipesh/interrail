@@ -207,11 +207,11 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
       </motion.div>
 
       {/* Content */}
-      <div className="relative flex h-full flex-col justify-between px-6 p-10">
+      <div className="relative flex h-full flex-col justify-between px-6 p-9">
         {/* Route chips */}
         <motion.div
           variants={cardCopy}
-          className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 font-departure font-normal text-xs uppercase tracking-[0.72px] ${idx === 2 ? "text-[#E2DAC8]" : "text-navy-1"}`}
+          className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 font-departure font-normal text-xs uppercase tracking-[0.72px] ${idx === 2 || idx === 1 ? "text-[#E2DAC8]" : "text-navy-1"}`}
         >
           {d.routes.map((r, i) => (
             <span key={r} className="flex items-center gap-2">
@@ -223,7 +223,7 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
 
         {/* Heading + actions */}
         <motion.div variants={cardCopy}>
-          <h3 className="max-w-[92%] text-lg font-semibold leading-5 font-sans text-white">
+          <h3 className="max-w-[92%] text-lg font-semibold leading-5 tracking-[-0.18px] font-sans text-white">
             {d.heading}
           </h3>
 
@@ -233,13 +233,13 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
               whileTap={{ scale: 0.98 }}
               whileHover={{ scale: 1.02, y: -1 }}
               transition={{ type: "spring", stiffness: 400, damping: 22 }}
-              className=" whitespace-nowrap text-left text-brand-yellow text-base font-semibold uppercase leading-[130%]"
+              className=" whitespace-nowrap text-left text-brand-yellow text-sm font-semibold leading-[130%] tracking-14"
             >
               View This Itinerary
             </motion.button>
             <div className="flex items-center text-base font-normal leading-[130%] font-sans text-brand-yellow gap-1">
-              <span className="text-normal text-white">from</span>
-              <span className="font-semibold">$389</span>
+              <span className="text-normal text-white tracking-16">from</span>
+              <span className="font-semibold text-sm tracking-14">$389</span>
             </div>
           </div>
         </motion.div>
