@@ -38,6 +38,22 @@ export default function RootLayout({
       className={`${poppins.variable} ${robotoMono.variable}`}
       suppressHydrationWarning
     >
+      {/* Gveret Levin is not in next/font's family list, so it is loaded from
+          Google rather than through next/font like Poppins and Roboto Mono.
+          Only the latin face is fetched — the hebrew face is behind a
+          unicode-range the rating line never hits. */}
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin=""
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Gveret+Levin&display=swap"
+        />
+      </head>
       <body>
         {/* First in the body so it runs before the page is parsed, and
             synchronous so it lands before the first paint. Decides nothing —

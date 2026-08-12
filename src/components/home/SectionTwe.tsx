@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import Image from "next/image";
+import { FaApple, FaGooglePlay } from "react-icons/fa";
 import {
   cubicBezier,
   motion,
@@ -105,15 +106,51 @@ const SHEEN_START = 1.15;
 const SHEEN_STAGGER = 0.18;
 
 /**
- * Both store badges come from one sprite — Google Play stacked above App
- * Store — so this crops the sprite to a single badge rather than shipping two
- * files.
+ * Mark and wording for each store, so the badge itself stays presentational.
  *
- * Every measurement is the original set scaled by exactly 11/9, which takes the
- * window from 72×27 to 88×33 without touching the aspect. That factor matters:
- * decoding the sprite puts Google Play at 6.17–46.33% of its height and the App
- * Store at 53.67–93.83%, so each window clears the other badge by 1.27px. Move
- * any one of these numbers on its own and the neighbouring badge bleeds in.
+ * `label` is carried separately rather than joined from the two visible lines.
+ * Stacked block elements concatenate with no whitespace between them, so the
+ * button's own text announced as "Download on theApp Store"; and the second
+ * line is set the way the real badges set it, which would hand a screen reader
+ * "GET IT ON" to spell out letter by letter.
+ */
+const STORES = {
+  ios: {
+    Icon: FaApple,
+    lead: "Download on the",
+    name: "App Store",
+    label: "Download on the App Store",
+  },
+  android: {
+    Icon: FaGooglePlay,
+    lead: "GET IT ON",
+    name: "Google Play",
+    label: "Get it on Google Play",
+  },
+} as const;
+
+/**
+ * The store badges, drawn rather than shipped.
+ *
+ * These were one sprite — Google Play stacked above App Store — cropped twice
+ * by a set of hand-measured offsets that only held together at one size. Type
+ * and a vector mark instead: nothing to decode, nothing to keep in agreement,
+ * and the label is real text, so it is selectable, searchable, and readable to
+ * a screen reader without an `alt` standing in for it.
+ *
+ * 32px tall against a 108px cap, which holds the real badges' ~3:1 proportion.
+ * The type sizes are not eyeballed: measured in Poppins, the two lines compete
+ * for the same column, and the lead is the longer of the two — "Download on
+ * the" runs 72.7px at 8px against "Google Play"'s 70.1px at 12px, so it is the
+ * lead, not the name, that sets how small this can go. At 7px and 11px they
+ * land within 0.1px of each other at ~64.2px, which is what lets the badge come
+ * down to 108px and still keep 8.8px of slack in a 73px column.
+ *
+ * Below this the type is the limit rather than the box: dropping the lead line
+ * for an icon-and-name badge is the way to go smaller, not smaller type.
+ *
+ * The row flexes under the cap so the pair still fits a 320px screen, where the
+ * column is only 272px wide.
  */
 function StoreBadge({
   store,
@@ -124,27 +161,35 @@ function StoreBadge({
   sweeping: boolean;
   delay: number;
 }) {
+  const { Icon, lead, name, label } = STORES[store];
+
   return (
-    <span className="relative block h-[33px] w-[88px] shrink-0 overflow-hidden">
-      <span
-        className="absolute left-[-3.667px] block h-[63.873px] w-[95.333px]"
-        style={{ top: store === "ios" ? "-30.873px" : 0 }}
-      >
-        <Image
-          src="/images/app-store-badges.png"
-          alt={
-            store === "ios"
-              ? "Download on the App Store"
-              : "Get it on Google Play"
-          }
-          fill
-          sizes="96px"
-          className="object-contain"
-        />
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      className="group relative flex h-8 w-full items-center gap-1.5 overflow-hidden rounded-md border border-white/40 bg-black/80 px-1.5 text-left text-white transition-colors duration-300 [@media(hover:hover)]:hover:border-white/70 [@media(hover:hover)]:hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transition-none"
+    >
+      <Icon aria-hidden className="h-[17px] w-[17px] shrink-0" />
+
+      {/* The one phrase a screen reader gets. The visible pair below is hidden
+          from it, so the split into two lines stays a purely visual decision. */}
+      <span className="sr-only">{label}</span>
+
+      {/* min-w-0 so the flex child may actually shrink; without it the text
+          would push the badge past its cap on a narrow screen instead of
+          truncating inside it. */}
+      <span aria-hidden className="flex min-w-0 flex-col">
+        <span className="font-sans text-[7px] font-medium leading-[9px] tracking-[0.3px] text-white/70">
+          {lead}
+        </span>
+        <span className="truncate font-sans text-[11px] font-semibold leading-[13px] tracking-[-0.2px]">
+          {name}
+        </span>
       </span>
 
       {/* The sweep lives inside the badge's own crop, so it is clipped to the
-          artwork and cannot touch the row's layout. Its own initial/animate
+          button and cannot touch the row's layout. Its own initial/animate
           keeps it out of the entrance variants, which would otherwise stop the
           loop dead the moment the timeline settled. 30% white is enough to
           catch the eye on a black badge without washing out the wordmark. */}
@@ -159,7 +204,7 @@ function StoreBadge({
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.30), transparent)",
         }}
       />
-    </span>
+    </motion.button>
   );
 }
 
@@ -243,13 +288,17 @@ export default function SectionTwe() {
             {/* No overflow on this row. The badges ride 16px low through their
                 entrance, so anything clipping here shears their bottom edge —
                 which is exactly what a wrapper-level sweep mask did. */}
+            {/* The badges share the row evenly and cap at 124px, rather than
+                taking a fixed width, so a narrow screen shrinks them instead of
+                overrunning: this column is only 272px wide at a 320px viewport
+                and the gap has to come out of that too. */}
             <div className="mt-[13px] flex items-center gap-3">
               {(["ios", "android"] as const).map((store, i) => (
                 <motion.span
                   key={store}
                   custom={i}
                   variants={badgeIn}
-                  className="block"
+                  className="block min-w-0 flex-1 basis-0 max-w-[108px]"
                 >
                   <StoreBadge
                     store={store}

@@ -295,6 +295,22 @@ const GREY_D =
 const YELLOW_D =
   "M5.39163 19.9203L19.8635 20.4146L46.0201 20.3125L59.2239 22.0627L64.7983 24.2442L68.3994 21.4481L107.787 20.5661L114.019 24.4068L129.427 27.6328L133.875 44.7934L145.038 65.8955L162.263 79.6453L190.189 85.4925L251.929 88.2762L280.459 100.843";
 
+/**
+ * The unlit part of the route — the track the signal has yet to reach.
+ *
+ * Lightened from the artwork's #AFAFAF (2.19:1 against white) to Tailwind's
+ * neutral-200, which is also the grey this section's own inactive pagination
+ * dots are drawn in. Kept in step with the identical constant in SectionTwo:
+ * the two sections show the same device a screen apart, so a difference here
+ * reads as one of them being wrong rather than as variety.
+ *
+ * At 1.26:1 this is deliberately at the edge of visible. It is defensible only
+ * because the SVG is `aria-hidden` and carries nothing the copy does not — no
+ * information is lost if a reader never resolves the grey at all. Do not reuse
+ * it for anything load-bearing, which would need 3:1.
+ */
+const ROUTE_GREY = "#E5E5E5";
+
 /** The community route, inline so its two strokes and three stops can be
  *  drawn individually. Geometry, widths, caps and gradients are the artwork's. */
 function CommunityRoute({ progress }: { progress: MotionValue<number> }) {
@@ -318,7 +334,7 @@ function CommunityRoute({ progress }: { progress: MotionValue<number> }) {
     >
       <motion.path
         d={GREY_D}
-        stroke="#AFAFAF"
+        stroke={ROUTE_GREY}
         strokeWidth="2"
         strokeLinecap="round"
         style={grey}
@@ -568,7 +584,7 @@ export default function SectionTen() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-white pb-8 pt-48"
+      className="relative overflow-hidden bg-white pb-10 pt-48"
     >
       {/* Route line running in from the top-left corner.
 
@@ -703,7 +719,7 @@ export default function SectionTen() {
             variants={paginationIn}
             initial={reduce ? "show" : "hidden"}
             animate={sectionInView || reduce ? "show" : "hidden"}
-            className="mt-[42px] flex items-center gap-[8.76px] px-6"
+            className="mt-[42px] flex items-center justify-center gap-[8.76px] px-6"
           >
             {STORIES.map((story, i) => {
               const current = i === active;

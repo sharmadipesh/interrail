@@ -176,13 +176,96 @@ const copyrightIn: Variants = {
 };
 
 /** The logo rises into its frame out of the wrapper's clip. */
-const logoIn: Variants = {
-  hidden: { opacity: 0, y: "84%", scale: 0.96 },
+/**
+ * The mark is revealed in two parts rather than as one block.
+ *
+ * `/images/interrail-white.svg` is an SVG only on the outside — inside it is a
+ * single base64 PNG behind a `<pattern>`, with no paths, circles or groups to
+ * animate. So this borrows the approach Logo2 already uses on the navbar's
+ * artwork for the same reason: paint the one image twice, clip each copy to a
+ * region, and stagger the two.
+ *
+ * The split is measured, not guessed. Decoding the artwork and scanning it by
+ * column, the emblem's ink ends at 21.7% and the gap before the wordmark runs
+ * to 24.8%, centred on 23.2% — which is where Logo2 independently puts it.
+ */
+const SPLIT = 23.2;
+
+/** Shared artwork. Painted as a background so each copy can be clipped. */
+const LOGO_ART = {
+  backgroundImage: "url('/images/interrail-white.svg')",
+  backgroundSize: "contain",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "left center",
+} as const;
+
+/**
+ * The logo gets its own curve rather than the footer's EASE.
+ *
+ * EASE is cubicBezier(0.22, 1, 0.36, 1) — a hard ease-out whose slope at t=0 is
+ * 1 / 0.22 = 4.55. On a half-second reveal that front-loads almost everything
+ * into the first few frames: measured, the emblem was 97.8% of the way through
+ * its scale by 0.32s, so it snapped rather than arrived, and then a 0.85s wipe
+ * followed it. A pop chased by a slow curtain is two gestures, not one, which
+ * is what read as odd. This is gentle at both ends, so the two halves move at
+ * comparable speeds and hand over to each other.
+ */
+const EASE_LOGO = cubicBezier(0.42, 0, 0.58, 1);
+
+/**
+ * The emblem irises open from its own centre.
+ *
+ * A circular reveal for a circular mark, and — unlike the scale it replaces —
+ * one that cannot desynchronise from the wordmark: nothing is transformed, so
+ * both halves are always at their true size no matter where the timeline is.
+ *
+ * The three numbers are measured off the artwork, not chosen. Scanning the
+ * emblem's ink puts its centre at (30.61, 28.86) in the 247×59 box, with the
+ * farthest lit pixel 24.27px away — so the iris must reach 25px to cover the
+ * mark, and may not exceed 30.6px or it starts uncovering the wordmark early.
+ * 27px sits in the middle of that band.
+ *
+ * The circle also does the region clipping the old `inset()` did, which is why
+ * there is only one clip-path here: an element gets one, and the iris is
+ * strictly inside the emblem's own territory anyway.
+ */
+const EMBLEM = { x: 30.61, y: 28.86, r: 27 } as const;
+
+const emblemIn: Variants = {
+  hidden: {
+    opacity: 0,
+    clipPath: `circle(0px at ${EMBLEM.x}px ${EMBLEM.y}px)`,
+  },
   show: {
     opacity: 1,
-    y: "0%",
-    scale: 1,
-    transition: { duration: 0.95, ease: EASE },
+    clipPath: `circle(${EMBLEM.r}px at ${EMBLEM.x}px ${EMBLEM.y}px)`,
+    transition: {
+      duration: 0.55,
+      ease: EASE_LOGO,
+      // Resolves early so the iris is uncovering a solid mark rather than a
+      // ghost — otherwise the growing circle reads as a fade with a shape.
+      opacity: { duration: 0.22, ease: EASE_LOGO },
+    },
+  },
+};
+
+/**
+ * The wordmark is then written out, left to right.
+ *
+ * Opens at 0.4, while the iris is still finishing, so the two overlap and read
+ * as one continuous move across the lockup. That overlap is only safe because
+ * neither half is scaled: when the emblem was scaling, anything starting before
+ * it landed put a full-size wordmark beside a smaller mark.
+ *
+ * Both states keep the left inset pinned at the split, so only the right edge
+ * travels — the letters are uncovered rather than sliding, and nothing is ever
+ * painted over the emblem's region.
+ */
+const wordmarkIn: Variants = {
+  hidden: { clipPath: `inset(0% ${100 - SPLIT}% 0% ${SPLIT}%)` },
+  show: {
+    clipPath: `inset(0% 0% 0% ${SPLIT}%)`,
+    transition: { duration: 0.7, ease: EASE_LOGO, delay: 0.4 },
   },
 };
 
@@ -498,15 +581,31 @@ export default function Footer() {
             reduce={reduce}
             className="relative h-[59px] w-[247px] overflow-hidden"
           >
-            <motion.div variants={logoIn} className="absolute inset-0">
-              <Image
-                src="/images/footer-logo.png"
-                alt="Interrail"
-                fill
-                sizes="247px"
-                className="object-contain"
+            {/* One name for the pair. The two copies below are the same
+                artwork painted twice and clipped to complementary regions, so
+                each is decoration; announcing either would say "Interrail"
+                twice. Variants still reach them through this plain wrapper. */}
+            <span
+              role="img"
+              aria-label="Interrail"
+              className="absolute inset-0 block"
+            >
+              {/* No clip-path or transform-origin here: the iris in emblemIn
+                  is the clip, and there is nothing left to transform. */}
+              <motion.span
+                aria-hidden
+                variants={emblemIn}
+                className="absolute inset-0 block"
+                style={LOGO_ART}
               />
-            </motion.div>
+
+              <motion.span
+                aria-hidden
+                variants={wordmarkIn}
+                className="absolute inset-0 block"
+                style={LOGO_ART}
+              />
+            </span>
 
             {/* Low enough not to recolour the wordmark, and clipped to the
                 wrapper so it can never touch the layout. Reduced motion drops

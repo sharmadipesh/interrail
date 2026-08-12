@@ -24,7 +24,7 @@ const DATA = [
   {
     src: "section-4.1.png",
     dest: ["STRASBOURG", "BASEL", "LUCERNE", "ZURICH", "INNSBRUCK"],
-    desc: "From half-timbered Strasbourg to half-pipes in Innsbruck. Serious mountains. Serious charm.",
+    desc: "Start with risotto, end with Roman ruins. Six stops in Italy. Always with a long lunch somewhere on the way.",
   },
   {
     src: "section-4.2.png",
@@ -80,9 +80,12 @@ const contentUp: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
 };
 
-// The price sits on the photo, so it rises a shorter distance than the copy
-// below the frame — it reads as settling onto the image rather than arriving.
-const priceIn: Variants = {
+// The overlay row sits on the photo, so it rises a shorter distance than the
+// copy below the frame — it reads as settling onto the image rather than
+// arriving. Shared by the itinerary link and the price; because they are two
+// separate variant children, the card's own 0.08 stagger deals them in left to
+// right without either needing a delay of its own.
+const overlayIn: Variants = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } },
 };
@@ -265,23 +268,56 @@ function Card({
             so it stays pinned to the frame while the photo drifts. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 from-0% to-transparent to-45%"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 from-0% to-transparent to-20%"
         />
 
-        {/* Price — bottom-right of the frame */}
-        <motion.div
-          variants={priceIn}
-          className="absolute bottom-3 right-[13px] flex items-baseline gap-1 font-sans text-base leading-[130%]"
-        >
-          <span className="font-normal text-white">from</span>
-          <span className="font-semibold text-brand-yellow">$389</span>
-        </motion.div>
+        {/* Overlay row — link left, price right, along the foot of the frame.
+            The row is what carries the absolute placement now. Previously only
+            the price was absolute and the flex wrapper was left in flow, which
+            broke it two ways: `justify-between` had a single in-flow item to
+            distribute, so it did nothing, and the wrapper was the frame's only
+            in-flow child, so it collapsed to the top edge and printed the
+            yellow link across the top of the photo. Both controls sit in flow
+            here and the row is pinned to the bottom instead.
+
+            13px each side mirrors the price's original inset, and `bottom-3`
+            keeps it on the scrim above, which is graded for exactly this. */}
+        <div className="absolute inset-x-[13px] bottom-3 flex items-baseline justify-between gap-3">
+          <motion.button
+            type="button"
+            variants={overlayIn}
+            // Scale only. The entrance owns opacity and y, and a gesture that
+            // animated either would fight it mid-reveal.
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="group relative shrink-0 font-sans text-sm font-semibold leading-[125%] tracking-14 text-brand-yellow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
+          >
+            View this Itinerary
+            {/* The page's underline idiom, and CSS rather than a framer value
+                so it cannot stick after a tap on a touch screen — the hover
+                query simply never matches there. */}
+            <span
+              aria-hidden
+              className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 motion-reduce:transition-none"
+            />
+          </motion.button>
+
+          <motion.div
+            variants={overlayIn}
+            className="flex shrink-0 items-baseline gap-1 font-sans text-sm leading-[130%]"
+          >
+            <span className="font-normal text-white tracking-16">from</span>
+            <span className="font-semibold text-brand-yellow tracking-14">
+              $389
+            </span>
+          </motion.div>
+        </div>
       </div>
 
       {/* Route chips */}
       <motion.div
         variants={contentUp}
-        className="mt-5 flex flex-wrap items-center gap-x-1.5 font-departure font-normal text-xs uppercase tracking-[0.72px] text-navy"
+        className="mt-6 flex flex-wrap items-center gap-x-1.5 font-departure font-normal text-xs uppercase tracking-[0.72px] text-navy"
       >
         {item.dest.map((d) => (
           <span key={d} className="flex items-center gap-2">
@@ -403,13 +439,13 @@ export default function SectionFive() {
   const canDrag = maxDrag > 0;
 
   return (
-    <section className="bg-white mt-10 pb-[68px]">
+    <section className="bg-white pb-[68px]">
       <motion.div
         variants={shell}
-        initial={reduce ? "show" : "hidden"}
         whileInView="show"
-        viewport={{ once: true, amount: 0.25 }}
         className="mx-auto max-w-md"
+        initial={reduce ? "show" : "hidden"}
+        viewport={{ once: true, amount: 0.25 }}
       >
         {/* Carousel — drag to scrub, snaps to the nearest card on release */}
         <div ref={viewportRef} className="overflow-hidden">
@@ -438,17 +474,17 @@ export default function SectionFive() {
         {/* Pagination — the active dot rises and fades up in yellow */}
         <motion.div
           variants={paginationIn}
-          className="mt-5 flex justify-center gap-2.5"
+          className="mt-6 flex justify-center gap-2.5"
         >
           {DATA.map((_, i) => (
             <Dot
               key={i}
               i={i}
               x={x}
-              snaps={snaps}
               step={step}
-              isCurrent={i === index}
+              snaps={snaps}
               reduce={!!reduce}
+              isCurrent={i === index}
               onSelect={() => goTo(i)}
             />
           ))}

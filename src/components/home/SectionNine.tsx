@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { RiArrowRightLine } from "react-icons/ri";
 import { useTouchPulse } from "@/components/generic/useTouchPulse";
 import {
   cubicBezier,
@@ -241,7 +242,7 @@ function StoryCard({
       variants={cardIn}
       initial={reduce ? "show" : "hidden"}
       animate={show ? "show" : "hidden"}
-      className="flex w-[297px] shrink-0 snap-start flex-col gap-[21.704px]"
+      className="flex w-[297px] shrink-0 snap-start flex-col gap-5"
     >
       <div className="relative flex h-[396px] flex-col justify-end overflow-hidden px-[27.415px] py-[36.554px]">
         {/* One layer, carrying one transform: the horizontal drift.
@@ -279,7 +280,7 @@ function StoryCard({
         />
         <motion.p
           variants={nameIn}
-          className="relative font-sans text-[20px] font-semibold leading-[22.846px] tracking-[-0.2px] text-white"
+          className="relative font-sans text-[20px] font-semibold leading-[22px] tracking-[-0.2px] text-white"
         >
           {story.name}
         </motion.p>
@@ -287,7 +288,7 @@ function StoryCard({
 
       <motion.blockquote
         variants={quoteIn}
-        className="font-sans text-[20px] font-semibold leading-[22.846px] tracking-[-0.2px] text-navy-1"
+        className="font-sans text-[20px] font-semibold leading-[22px] tracking-[-0.2px] text-navy-1"
       >
         {story.quote}
       </motion.blockquote>
@@ -370,7 +371,7 @@ export default function SectionNine() {
       ref={sectionRef}
       initial={reduce ? "show" : "hidden"}
       animate={sectionInView || reduce ? "show" : "hidden"}
-      className="bg-white pb-12 pt-[60px]"
+      className="bg-white pb-11 pt-[60px]"
     >
       {/* Story strip — scroll-snaps horizontally; scroll-pl-6 keeps a snapped
           card against the page gutter rather than the viewport edge. */}
@@ -408,7 +409,7 @@ export default function SectionNine() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-6">
+      <div className="mt-6 flex flex-col items-center gap-6">
         {/* Pagination — the active dot rises and fades up in yellow */}
         <motion.div
           variants={paginationIn}
@@ -461,28 +462,26 @@ export default function SectionNine() {
 
         <motion.button
           ref={ctaRef}
-          variants={ctaIn}
           type="button"
+          variants={ctaIn}
           // Present only on hover-less devices, and only while on screen.
           // Elsewhere it is absent and the selectors below never match, so a
           // pointer keeps the plain hover behaviour.
+          whileTap={{ scale: 0.98 }}
           data-pulse={ctaPulse ? "on" : undefined}
           whileHover={reduce ? undefined : { y: -1 }}
-          whileTap={{ scale: 0.98 }}
           transition={{ duration: 0.3, ease: EASE }}
-          className="group relative flex items-center gap-1.5 font-sans text-base font-semibold leading-[1.4] text-[#0F141C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
+          className="group relative flex items-center gap-1.5 font-sans text-base font-semibold leading-[1.4] text-navy-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
         >
-          Explore Their Trips
+          View Their Trips
           {/* Hover motion is CSS and gated to devices that actually hover, so it
               cannot stick on a touch screen after a tap. */}
-          <Image
-            src="/images/effect-arrow.svg"
-            alt=""
+          {/* No colour class: react-icons draws with `fill="currentColor"`, so
+              the arrow inherits the button's own text-navy-1 and cannot drift
+              from the label it sits beside. */}
+          <RiArrowRightLine
             aria-hidden
-            width={8}
-            height={7}
-            unoptimized
-            className="transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
+            className="h-6 transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
           />
           <span
             aria-hidden

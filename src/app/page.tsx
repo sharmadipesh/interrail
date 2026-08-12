@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 
 import Navbar from "@/components/generic/Navbar";
@@ -10,7 +10,12 @@ import Loader, {
 import { INTRO_KEY } from "@/components/generic/intro";
 import Banner from "@/components/home/Banner";
 import SectionTwo from "@/components/home/SectionTwo";
-import SectionThree from "@/components/home/SectionThree";
+// Which SectionThree treatment renders is chosen by `?section_three=…`.
+// The six are registered in SectionThreeVariants; only the default is bundled
+// eagerly, so a plain visit costs no more than the single import did.
+import SectionThreeVariantSwitch, {
+  SectionThreeDefault,
+} from "@/components/home/SectionThreeVariants";
 import SectionFour from "@/components/home/SectionFour";
 import SectionFive from "@/components/home/SectionFive";
 import SectionSix from "@/components/home/SectionSix";
@@ -77,7 +82,9 @@ export default function Home() {
 
     // Read directly rather than through useReducedMotion: this needs an answer
     // in the same tick, before anything is committed.
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
     if (seen || reduce) {
       setIntro("done");
@@ -156,10 +163,7 @@ export default function Home() {
       return () => window.clearTimeout(t);
     }
     if (intro === "revealing") {
-      const t = window.setTimeout(
-        () => setIntro("done"),
-        LOADER_EXIT_MS + 400,
-      );
+      const t = window.setTimeout(() => setIntro("done"), LOADER_EXIT_MS + 400);
       return () => window.clearTimeout(t);
     }
   }, [intro]);
@@ -224,7 +228,19 @@ export default function Home() {
         <Navbar hidden={navHidden} ready={introReady} />
         <Banner ready={introReady} />
         <SectionTwo />
-        <SectionThree />
+        {/* `?section_three=variation-1` … `variation-6` picks the treatment;
+            anything else, or nothing, renders the default.
+
+            The Suspense boundary is required, not stylistic: the switch reads
+            the URL with `useSearchParams()`, which throws a bailout error
+            during prerender if it is unwrapped and fails the build. Wrapped,
+            only this one section defers — the rest of the page is still
+            statically prerendered — and the fallback is what ships in the
+            static HTML, so a visitor with no parameter sees the default with
+            no swap. */}
+        <Suspense fallback={<SectionThreeDefault />}>
+          <SectionThreeVariantSwitch />
+        </Suspense>
         <SectionFour />
         <SectionFive />
         <SectionSix />
