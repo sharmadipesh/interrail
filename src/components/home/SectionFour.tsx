@@ -1,5 +1,5 @@
 "use client";
-
+import { clsx } from "clsx";
 import { useRef } from "react";
 import Image from "next/image";
 import {
@@ -211,7 +211,10 @@ function DestinationCard({ d, idx }: { d: Destination; idx: number }) {
         {/* Route chips */}
         <motion.div
           variants={cardCopy}
-          className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 font-departure font-normal text-xs uppercase tracking-[0.72px] ${idx === 2 || idx === 1 ? "text-[#E2DAC8]" : "text-navy-1"}`}
+          className={clsx(
+            `flex flex-wrap items-center gap-x-1.5 gap-y-1 font-departure font-normal text-xs uppercase tracking-[0.72px]`,
+            idx === 2 || idx === 1 ? "text-white" : "text-navy-1",
+          )}
         >
           {d.routes.map((r, i) => (
             <span key={r} className="flex items-center gap-2">
@@ -256,9 +259,9 @@ export default function SectionFour() {
       {/* Intro — heading and paragraph on one timeline */}
       <motion.div
         variants={intro}
-        initial={reduce ? "show" : "hidden"}
         whileInView="show"
         viewport={INTRO_VIEWPORT}
+        initial={reduce ? "show" : "hidden"}
       >
         {/* motion.h2 carries no variants of its own; it exists so the variant
             state reaches the masked line inside it. */}

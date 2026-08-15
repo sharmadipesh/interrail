@@ -104,6 +104,49 @@ const LOWER_STOPS = [0.314, 0.631] as const;
 /** How long a station takes to bloom once the signal arrives. */
 const DWELL = 0.09;
 
+/**
+ * The pulse a station keeps up once it has arrived: its white centre fills with
+ * brand yellow and drains back out.
+ *
+ * One property, and fill rather than opacity. The dot's white centre is what
+ * masks the route passing underneath it, so anything that fades the marker lets
+ * the line show through and reads as the route briefly healing over the stop.
+ * Fill never costs that — the disc stays fully opaque throughout and only
+ * changes colour, so the stop always sits *on* the line rather than dissolving
+ * into it.
+ *
+ * The lit colour is the route's own #FFD400 (brand.yellow), not a new accent, so
+ * the stop reads as the signal arriving in it. Only the centre moves: the ring
+ * keeps its #FEBC22 → #FFD400 gradient stroke, which is what stops the dot
+ * disappearing into the line at the top of the pulse — at full fill it is a
+ * yellow disc still outlined against yellow.
+ *
+ * ── Why there is a hold in the middle ───────────────────────────────────────
+ *
+ * As a plain three-keyframe sweep the fill only *passed through* #FFD400, for a
+ * single frame out of ninety-odd, and spent the rest of the cycle in the cream
+ * midtones between it and white. The dot never actually looked like the line —
+ * it looked like a washed-out version of it.
+ *
+ * Repeating the lit colour is what fixes that. Framer spaces keyframes evenly
+ * when it is not told otherwise, so [white, lit, lit, white] puts the fill at
+ * the line's exact yellow across the whole middle third of the cycle — 0.73s of
+ * actually being that colour, rather than an instant of crossing it.
+ *
+ * The hold is spelled as a repeated keyframe rather than with a `times` array
+ * simply because it needs no second mechanism: even spacing already puts the
+ * hold where a `times` of [0, 0.33, 0.67, 1] would.
+ *
+ * Either side of the hold is 0.73s of easeInOut, so the fill arrives at and
+ * leaves the line's colour at zero velocity and the loop has no corner in it
+ * anywhere. 2.2s total, up from 1.6s — the same travel over more time is the
+ * whole of what makes it gentler. Still far outside the 3Hz threshold that makes
+ * flashing an accessibility problem.
+ */
+const STATION_FILL = "#FFFFFF";
+const STATION_FILL_LIT = "#FFD400";
+const PULSE_SECONDS = 2.2;
+
 /** Maps a station's position along a path onto that path's draw window. */
 function stopWindow([from, to]: Range, at: number): Range {
   const start = from + at * (to - from);
@@ -208,6 +251,18 @@ function Reveal({
  * orients its userSpaceOnUse gradient, so a CSS transform here would quietly
  * restyle it. Scaling lives on the wrapping group instead, which Framer renders
  * with transform-box: fill-box and a 50% origin, i.e. the circle's own centre.
+ *
+ * Two groups, not one: the outer carries the scroll-driven bloom as MotionValues
+ * on `style`, the inner carries the time-driven fill pulse. Keeping the pulse off
+ * the `<circle>` is the point of the split — a motion component on the circle
+ * lets Framer write a CSS transform, and CSS transform beats the presentation
+ * attribute, so the rotate() above would be silently dropped and every station's
+ * gradient would swing round with it. The circle stays inert; the group animates.
+ *
+ * The circle inherits its fill rather than declaring one, which is what lets the
+ * group drive it. The group carries a static `fill` too, so the marker is white
+ * in the server-rendered HTML and under reduced motion instead of falling back
+ * to SVG's default black.
  */
 function Station({
   cx,
@@ -230,17 +285,60 @@ function Station({
   const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
   const scale = useTransform(progress, [from, to], [0.5, 1], { ease: EASE });
 
+  // A marker that never stops moving is the thing a reader who asked for less
+  // motion asked to be rid of, so under reduced motion the dot simply rests
+  // white. The bloom is already neutralised upstream — useViewportProgress pins
+  // progress at 1 — so dropping the loop here is all that is left to do.
+  const reduce = useReducedMotion();
+
   return (
     <motion.g style={{ opacity, scale }}>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        transform={`rotate(${rotate} ${cx} ${cy})`}
-        fill="white"
-        stroke={`url(#${gradient})`}
-        strokeWidth="2"
-      />
+      <motion.g
+        // `initial` is not decoration. Once `fill` appears in `animate` Framer
+        // owns the attribute and renders it from its own state, so a plain
+        // `fill=` prop here is swallowed rather than used as the base — it
+        // writes the string "undefined", which is not a colour, and the circle
+        // falls back to the `fill="none"` it inherits from the <svg>. The dot
+        // goes hollow and the route runs straight through it. Naming the start
+        // colour here is what gives Framer something to interpolate from, and
+        // it is what lands in the prerendered HTML.
+        initial={{ fill: STATION_FILL }}
+        // A plain `animate`, deliberately, and not `whileInView`. Gating the
+        // loop on visibility would be the tidier-sounding thing, but it puts an
+        // IntersectionObserver on an SVG <g> — an element with no CSS box — and
+        // that is exactly the sort of dependency that fails on one engine and
+        // leaves the stations mysteriously dead. Framer parks the loop itself
+        // when the page stops painting, off screen or in a background tab.
+        animate={
+          reduce
+            ? { fill: STATION_FILL }
+            : {
+                // Four keyframes, not three, and the repeat is the point: the
+                // middle pair is the hold at the line's colour. Evenly spaced —
+                // see the note on `times` above.
+                fill: [
+                  STATION_FILL,
+                  STATION_FILL_LIT,
+                  STATION_FILL_LIT,
+                  STATION_FILL,
+                ],
+              }
+        }
+        transition={{
+          duration: PULSE_SECONDS,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          transform={`rotate(${rotate} ${cx} ${cy})`}
+          stroke={`url(#${gradient})`}
+          strokeWidth="2"
+        />
+      </motion.g>
     </motion.g>
   );
 }

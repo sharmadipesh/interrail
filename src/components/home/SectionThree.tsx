@@ -42,7 +42,7 @@ const HEADING = ["Staying", "curious"];
 // The middle four letters are white so they read out of the portrait clip
 // sitting behind them; "S" and the year stay navy on the white background.
 const SINCE = "SINCE 1959";
-const WHITE_FROM = 1;
+const WHITE_FROM = 0;
 const WHITE_TO = 4;
 
 /* ------------------------------------------------------------------ *
@@ -502,7 +502,7 @@ export default function SectionThree() {
           {/* Headline. The fixed 205px box with centred lines is the design's own
               frame — it holds the 12.5px of slack above and below the two 90px
               lines that sets the gap down to the tagline. */}
-          <h2 className="relative flex h-[205px] flex-col justify-center text-center font-sans text-[86px] font-semibold leading-[90px] tracking-[-3px] text-brand-yellow">
+          <h2 className="relative flex h-[205px] flex-col justify-center text-center font-sans text-[86px] font-semibold leading-[95px] tracking-[-3px] text-brand-yellow">
             {HEADING.map((word, i) => (
               <HeadingLine
                 key={word}
@@ -518,7 +518,7 @@ export default function SectionThree() {
               run 11.2px off-centre against the design. */}
           <motion.p
             style={tagline}
-            className="relative mt-6 pl-[22.4px] text-center font-departure text-base leading-[33.45px] tracking-[21px] text-navy-1"
+            className="relative mt-1 pl-[22.4px] text-center font-departure text-base leading-[33.45px] tracking-[21px] text-navy-1"
           >
             {SINCE.split("").map((char, i) => (
               <span
