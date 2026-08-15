@@ -90,9 +90,16 @@ const YELLOW: Range = [0.13, 0.95];
  * 234.7 units along — sit earlier in the draw. Re-measure against `D` if a
  * route is ever re-exported; a stale fraction here shows as a station blooming
  * off the signal.
+ *
+ * Both pairs are listed in route order, so the lower one now reads right-hand
+ * stop first: its path is drawn back to front (see LowerRoute) and a fraction is
+ * measured from whichever end the draw starts at. Reversing a polyline leaves
+ * its length alone — still 503.7 units — and only flips which end a point is
+ * measured from, so these are exactly the old fractions taken from 1:
+ * 0.686 → 0.314 and 0.369 → 0.631.
  */
 const UPPER_STOPS = [0.148, 0.482] as const;
-const LOWER_STOPS = [0.369, 0.686] as const;
+const LOWER_STOPS = [0.314, 0.631] as const;
 
 /** How long a station takes to bloom once the signal arrives. */
 const DWELL = 0.09;
@@ -376,8 +383,14 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
 }
 
 /**
- * Lower route — rises from the bottom-left and exits right. Here grey and
- * yellow share identical path data, so the lead comes purely from the timeline.
+ * Lower route — enters at the top right and runs back down to the bottom-left.
+ * Here grey and yellow share identical path data, so the lead comes purely from
+ * the timeline.
+ *
+ * It draws against the reading direction on purpose, and the only thing that
+ * makes it do so is the order the vertices are listed in: `pathLength` always
+ * fills from a path's `M`, so putting `M` on what Figma exported as the final
+ * point is the whole mechanism. Nothing is mirrored, rotated or moved.
  */
 function LowerRoute({ progress }: { progress: MotionValue<number> }) {
   const uid = useId().replace(/:/g, "");
@@ -387,18 +400,24 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
   const grey = useDraw(progress, GREY);
   const yellow = useDraw(progress, YELLOW);
 
+  // The Figma export's twenty vertices, listed back to front: the same points,
+  // the same segments between them, and therefore the same line on screen —
+  // only walked from (392.828, 39.3483) to (-6.90919, 283.029) instead of the
+  // other way round. A polyline is direction-agnostic as geometry, so this is a
+  // reversal of the traversal, not of the shape.
   const D =
-    "M-6.90919 283.029L4.53728 271.849L24.4306 250.882L35.9117 241.674L41.9109 238.888L42.4278 233.877L71.8024 201.747L79.629 199.703L93.9718 189.862L111.074 199.414L136.451 206.615L160.586 203.359L186.582 185.521L235.954 138.34L267.777 125.152L307.668 97.7812L330.836 65.2539L341.732 65.7606L381.622 38.3894L392.828 39.3483";
+    "M392.828 39.3483L381.622 38.3894L341.732 65.7606L330.836 65.2539L307.668 97.7812L267.777 125.152L235.954 138.34L186.582 185.521L160.586 203.359L136.451 206.615L111.074 199.414L93.9718 189.862L79.629 199.703L71.8024 201.747L42.4278 233.877L41.9109 238.888L35.9117 241.674L24.4306 250.882L4.53728 271.849L-6.90919 283.029";
 
   return (
     // 283 tall rather than 253, and the element is allowed to hang the extra 30
     // below its box.
     //
-    // The path's own start is (-6.90919, 283.029) — off the left edge and below
+    // The path's far end is (-6.90919, 283.029) — off the left edge and below
     // the bottom one. A 253-unit frame cut that last stretch off, so the line
-    // had to enter through the bottom edge about 22 units in rather than
-    // reaching the left side. Taking the frame down to the path's real extent
-    // puts the descent back on screen.
+    // met the bottom edge about 22 units in rather than reaching the left side.
+    // Taking the frame down to the path's real extent puts the descent back on
+    // screen — and now that the draw ends there rather than starting there, it
+    // is the stretch the line finishes on.
     //
     // Deliberately *not* a pan of the existing window: the route sits ~8 units
     // under the copy above it by design, so shifting it up to make room drives
@@ -433,21 +452,23 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
         style={yellow}
       />
 
-      <Station
-        cx={136.47}
-        cy={205.164}
-        r={4.52491}
-        rotate={-46.2817}
-        gradient={a}
-        progress={progress}
-        range={stopWindow(YELLOW, LOWER_STOPS[0])}
-      />
+      {/* In route order — drawing right-to-left, the signal now reaches
+          268,125 first and 136,205 second. */}
       <Station
         cx={268.319}
         cy={124.841}
         r={4.52491}
         rotate={-46.2817}
         gradient={b}
+        progress={progress}
+        range={stopWindow(YELLOW, LOWER_STOPS[0])}
+      />
+      <Station
+        cx={136.47}
+        cy={205.164}
+        r={4.52491}
+        rotate={-46.2817}
+        gradient={a}
         progress={progress}
         range={stopWindow(YELLOW, LOWER_STOPS[1])}
       />
@@ -538,10 +559,11 @@ export default function SectionTwo() {
         })}
       </div>
 
-      {/* Lower line — rises from the bottom-left to just under the last copy
-          block and exits right. Kept in flow so it reserves the 210px the Figma
-          leaves below the copy for it to sweep through, and so its bottom edge
-          stays pinned to the section's, which is how the asset is cropped.
+      {/* Lower line — sweeps in from the right, just under the last copy block,
+          and runs down to the bottom-left. Kept in flow so it reserves the
+          210px the Figma leaves below the copy for it to sweep through, and so
+          its bottom edge stays pinned to the section's, which is how the asset
+          is cropped.
           -43px is the overlap its frame has with that block in the design. */}
       <div
         ref={lowerRef}
