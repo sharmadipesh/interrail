@@ -106,8 +106,12 @@ const PARALLAX_SPRING = {
  * same value, so this reads as a single gesture rather than three components
  * each noticing the viewport on their own.
  *
- * Grey leads, yellow chases. Yellow is also only 68.5% of grey's length in the
- * artwork, so the signal trails permanently by geometry as well as by timing.
+ * Grey leads, yellow chases, and the lead now comes purely from the timeline.
+ * Figma exported the yellow truncated at 280.459,100.843 — 312.1 of grey's
+ * 455.9 units, 68.5% — so the last five segments stayed grey however far you
+ * scrolled: not a route still being drawn but one that stopped short. Both
+ * strokes share the full path now, exactly as SectionTwo's upper route does, and
+ * the route finishes fully lit.
  */
 const GREY: Range = [0.0, 0.72];
 const YELLOW: Range = [0.13, 0.95];
@@ -145,11 +149,36 @@ const STAT_INTERVAL = 4600;
 /**
  * Where each station sits along the yellow polyline, measured from the path
  * data rather than eyeballed — so a stop lights up when the signal actually
- * reaches it. The last one is the path's own terminus, which is why it blooms
- * exactly as the line lands.
+ * reaches it.
+ *
+ * All three read lower than they used to because the fraction is now of the full
+ * 455.9-unit route rather than of the 312.1 units the truncated yellow ran, not
+ * because any stop moved: 0.0564 → 0.0386, 0.539 → 0.369, 1 → 0.6859. The last
+ * one is the telling change — it used to be the yellow path's own terminus and
+ * so bloomed exactly as the line ran out. Now the line carries on past it to the
+ * real end of the route, and it blooms when the signal reaches it like the other
+ * two. Re-measure against ROUTE_D if the artwork is ever re-exported; a stale
+ * fraction here shows as a stop blooming off the signal.
  */
-const STOPS = [0.0564, 0.539, 1] as const;
+const STOPS = [0.0386, 0.369, 0.6859] as const;
 const DWELL = 0.09;
+
+/**
+ * The pulse a stop keeps up once the signal has arrived — the same one the
+ * SectionTwo stations run, and deliberately identical: the two sections show the
+ * same device a screen apart, so a difference reads as one of them being wrong
+ * rather than as variety.
+ *
+ * Fill rather than opacity, because the dot's white centre is what masks the
+ * route passing under it — fading it lets the line show through and reads as the
+ * route healing over the stop. The lit colour is the route's own #FFD400, and
+ * repeating it as the middle two of four evenly-spaced keyframes holds the fill
+ * at exactly that colour for the middle third of the cycle, so the dot is read
+ * as the line's yellow rather than as a cream it happened to cross.
+ */
+const STOP_FILL = "#FFFFFF";
+const STOP_FILL_LIT = "#FFD400";
+const PULSE_SECONDS = 2.2;
 
 /** Drift each way, in px. The layer is 120% wide, so a 297px card has 29.7px
  *  of slack per side — 5.7px more than the drift can ask for. */
@@ -242,6 +271,19 @@ const fadeOnly: Variants = {
  * The scale rides a wrapping group so the `<circle>` keeps its own geometry and
  * its gradient keeps the userSpaceOnUse coordinates the artwork defines —
  * scaling the circle itself would drag the gradient with it.
+ *
+ * Two groups, not one: the outer carries the scroll-driven bloom as MotionValues
+ * on `style`, the inner carries the time-driven fill pulse. One element cannot do
+ * both — `style` and `animate` would contend and `style` wins silently. Nested,
+ * SVG composes them, so a half-bloomed stop pulses at half strength.
+ *
+ * The circle inherits its fill rather than declaring one, which is what lets the
+ * group drive it, and `initial` is what makes that safe: once `fill` is in
+ * `animate` Framer owns the attribute and a plain `fill=` prop is swallowed —
+ * it writes the string "undefined", the circle falls back to the `fill="none"`
+ * it inherits from the <svg>, and the dot goes hollow with the route showing
+ * through. Naming the start colour gives Framer something to interpolate from
+ * and is what lands in the prerendered HTML.
  */
 function Stop({
   cx,
@@ -260,16 +302,35 @@ function Stop({
   const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
   const scale = useTransform(progress, [from, to], [0.5, 1], { ease: EASE });
 
+  // A marker that never stops moving is the thing a reader who asked for less
+  // motion asked to be rid of, so under reduced motion the dot rests white. The
+  // bloom is already neutralised upstream — progress is pinned at 1 — so
+  // dropping the loop here is all that is left to do.
+  const reduce = useReducedMotion();
+
   return (
     <motion.g style={{ opacity, scale }}>
-      <circle
-        cx={cx}
-        cy={cy}
-        r="4"
-        fill="white"
-        stroke={`url(#${gradient})`}
-        strokeWidth="2"
-      />
+      <motion.g
+        initial={{ fill: STOP_FILL }}
+        animate={
+          reduce
+            ? { fill: STOP_FILL }
+            : { fill: [STOP_FILL, STOP_FILL_LIT, STOP_FILL_LIT, STOP_FILL] }
+        }
+        transition={{
+          duration: PULSE_SECONDS,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <circle
+          cx={cx}
+          cy={cy}
+          r="4"
+          stroke={`url(#${gradient})`}
+          strokeWidth="2"
+        />
+      </motion.g>
     </motion.g>
   );
 }
@@ -290,10 +351,14 @@ function StopGradient({ id, cy }: { id: string; cy: number }) {
   );
 }
 
-const GREY_D =
+/**
+ * One path, both strokes. The yellow used to be a second, shorter copy of this
+ * — the same points, stopping at the fifteenth — and dropping it costs nothing
+ * geometrically: it was an exact prefix, so the lit run traces precisely the
+ * line it always did and simply carries on to the end.
+ */
+const ROUTE_D =
   "M5.39163 19.9203L19.8635 20.4146L46.0201 20.3125L59.2239 22.0627L64.7983 24.2442L68.3994 21.4481L107.787 20.5661L114.019 24.4068L129.427 27.6328L133.875 44.7934L145.038 65.8955L162.263 79.6453L190.189 85.4925L251.929 88.2762L280.459 100.843L323.312 109.815L359.078 104.625L365.561 112.068L408.414 121.041L414.795 128.97";
-const YELLOW_D =
-  "M5.39163 19.9203L19.8635 20.4146L46.0201 20.3125L59.2239 22.0627L64.7983 24.2442L68.3994 21.4481L107.787 20.5661L114.019 24.4068L129.427 27.6328L133.875 44.7934L145.038 65.8955L162.263 79.6453L190.189 85.4925L251.929 88.2762L280.459 100.843";
 
 /**
  * The unlit part of the route — the track the signal has yet to reach.
@@ -312,7 +377,8 @@ const YELLOW_D =
 const ROUTE_GREY = "#E5E5E5";
 
 /** The community route, inline so its two strokes and three stops can be
- *  drawn individually. Geometry, widths, caps and gradients are the artwork's. */
+ *  drawn individually. Geometry, widths, caps and gradients are the artwork's —
+ *  both strokes now share ROUTE_D, so the lead is the timeline's alone. */
 function CommunityRoute({ progress }: { progress: MotionValue<number> }) {
   const uid = useId().replace(/:/g, "");
   const a = `${uid}-a`;
@@ -333,14 +399,14 @@ function CommunityRoute({ progress }: { progress: MotionValue<number> }) {
       className="absolute inset-0 h-full w-full"
     >
       <motion.path
-        d={GREY_D}
+        d={ROUTE_D}
         stroke={ROUTE_GREY}
         strokeWidth="2"
         strokeLinecap="round"
         style={grey}
       />
       <motion.path
-        d={YELLOW_D}
+        d={ROUTE_D}
         stroke="#FFD400"
         strokeWidth="2"
         strokeLinecap="round"
