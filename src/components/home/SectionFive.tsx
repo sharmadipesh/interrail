@@ -11,8 +11,7 @@ import {
   type MotionValue,
   type Variants,
 } from "framer-motion";
-import { RiArrowRightLine } from "react-icons/ri";
-import { useTouchPulse } from "@/components/generic/useTouchPulse";
+import ArrowCta from "@/components/generic/ArrowCta";
 
 // Premium ease-out — smooth, no bounce. Matches the rest of the page.
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -340,9 +339,7 @@ function Card({
 export default function SectionFive() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
   const reduce = useReducedMotion();
-  const ctaPulse = useTouchPulse(ctaRef, !!reduce);
 
   const x = useMotionValue(0);
   const [index, setIndex] = useState(0);
@@ -492,33 +489,7 @@ export default function SectionFive() {
 
         {/* Explore all Trips — lands last in the sequence */}
         <motion.div variants={ctaIn} className="flex justify-center mt-6">
-          <motion.button
-            ref={ctaRef}
-            type="button"
-            // Present only on hover-less devices, and only while the button is
-            // on screen. Everywhere else it is absent and the selectors below
-            // never match, so a pointer keeps the plain hover behaviour.
-            data-pulse={ctaPulse ? "on" : undefined}
-            whileHover={reduce ? undefined : { y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="group relative flex items-center gap-1 text-navy font-sans text-base font-semibold leading-[160%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
-          >
-            <span>Explore all Trips</span>{" "}
-            {/* Hover motion is CSS and gated to devices that actually hover, so
-                it cannot stick on a touch screen after a tap. The data-pulse
-                selector is the same move on the same transition, for the touch
-                screens the hover query deliberately excludes. */}
-            <RiArrowRightLine
-              aria-hidden
-              className="h-6 text-navy transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
-            />
-            {/* Same underline idiom SectionSix uses, for continuity. */}
-            <span
-              aria-hidden
-              className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 group-data-[pulse=on]:scale-x-100"
-            />
-          </motion.button>
+          <ArrowCta label="Explore all Trips" />
         </motion.div>
       </motion.div>
     </section>
