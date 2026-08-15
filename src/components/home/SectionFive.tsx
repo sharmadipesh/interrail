@@ -195,21 +195,31 @@ function Dot({
       aria-current={isCurrent}
       aria-label={`Go to route ${i + 1}`}
       // before: pushes the hit area out to 28px without touching layout, so the
-      // 8px dot keeps its spacing but stays tappable.
+      // 6.5px mark keeps its spacing but stays tappable. Note the button pitch
+      // here is 22px (12 + the container's gap-2.5), so these targets overlap
+      // their neighbours by 6px and the later sibling wins the shared strip —
+      // -inset-1 would tile them at 20px with 2px to spare.
       className="relative grid h-3 w-3 place-items-center rounded-full before:absolute before:-inset-2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2"
     >
       {/* Idle dot — fades out as the ring takes its place, so the ring's centre
           can stay transparent instead of being painted over with the section's
-          background colour. */}
+          background colour.
+
+          6.5px, which is the size the design measures its pagination spacing to
+          and what the page's other three strips already draw. This was an 8px
+          mark, and next to them it read as a different control rather than the
+          same one. */}
       <motion.span
         style={{ opacity: dotOpacity }}
-        className="block h-2 w-2 rounded-full bg-[#E5E5E5]"
+        className="block h-[6.5px] w-[6.5px] rounded-full bg-[#E5E5E5]"
       />
-      {/* Active — a hollow ring, per the design. 2.5px of the 8px leaves a 3px
-          centre, matching the design's ~38% hole. */}
+      {/* Active — a hollow ring, per the design. The border thins with the mark
+          rather than staying put: 2px of 6.5 leaves a 2.5px centre, 38.5%, where
+          the old 2.5px of 8 left 3px, 37.5%. The hole keeps its proportion, so
+          this is the same ring drawn smaller and not a lighter one. */}
       <motion.span
         style={{ opacity: ringOpacity, scale: ringScale, y: ringY }}
-        className="absolute h-2 w-2 rounded-full border-[2.5px] border-brand-yellow"
+        className="absolute h-[6.5px] w-[6.5px] rounded-full border-2 border-brand-yellow"
       />
     </motion.button>
   );
