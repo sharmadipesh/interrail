@@ -157,20 +157,25 @@ type NetworkInformation = EventTarget & {
 /**
  * A hint, never the decision.
  *
- * Its only job is to avoid pulling 1.5MB down a connection that has told us not
- * to. Safari ships no Network Information API at all, so this returns true
- * there and the readiness checks above are left to do the whole job — which is
- * the arrangement everywhere, since a connection this says is fine still has to
- * buffer before anything is revealed.
+ * Its only job is to avoid pulling 1.5MB down a connection whose owner has
+ * asked us not to. Safari ships no Network Information API at all, so this
+ * returns true there and the readiness checks above are left to do the whole
+ * job — which is the arrangement everywhere, since a connection this says is
+ * fine still has to buffer before anything is revealed.
+ *
+ * `saveData` only, and not `effectiveType`. Save-Data is an explicit setting a
+ * person turned on; effectiveType is a rolling estimate from recent round-trip
+ * times, and it is wrong often enough to matter — it reported "2g" against a
+ * localhost dev server during testing here. Blocking on that would take the
+ * video away from a phone on perfectly good wifi and leave no trace of why.
+ * Slow connections are already handled where they should be: the video loads,
+ * fails to buffer, and never gets revealed.
  */
 function connectionAllowsVideo() {
   const connection = (
     navigator as Navigator & { connection?: NetworkInformation }
   ).connection;
-  if (!connection) return true;
-  if (connection.saveData) return false;
-  const type = connection.effectiveType;
-  return type !== "slow-2g" && type !== "2g";
+  return !connection?.saveData;
 }
 
 const container: Variants = {
@@ -217,10 +222,17 @@ export default function Banner({
   const reduceMotion = useReducedMotion();
   const inView = useInView(sectionRef, { amount: IN_VIEW_AMOUNT });
 
-  /** Buffered enough to start. Gates play(), never the reveal on its own. */
-  const [videoReady, setVideoReady] = useState(false);
-  /** A real frame is on screen. This alone is what fades the poster out. */
+  /** A smoothly-playing frame is on screen. This alone fades the poster out. */
   const [showVideo, setShowVideo] = useState(false);
+
+  /**
+   * Visibility, readable from the element's listeners without re-subscribing
+   * them every time it changes.
+   */
+  const inViewRef = useRef(inView);
+  useEffect(() => {
+    inViewRef.current = inView;
+  }, [inView]);
   /**
    * Starts false so a save-data client never begins the download: the element
    * renders without a `src` until the check below clears it, and the server
@@ -241,30 +253,42 @@ export default function Banner({
   }, []);
 
   /**
-   * Readiness tracking. Every listener here answers one question — is it still
-   * safe to be playing — and the stall handlers are what take the hero back to
-   * the poster rather than letting a buffering spinner or a frozen frame show.
+   * Reveal tracking.
+   *
+   * Readiness decides what is *shown*, never whether to press play. That split
+   * is the whole fix for mobile: on iOS, `preload` is advisory and WebKit will
+   * not buffer past metadata until playback is actually requested. Gating
+   * play() on a buffer therefore deadlocks — nothing buffers, so readyState
+   * sticks at 1, so play() is never called, so nothing buffers. Desktop Chrome
+   * honours preload="auto", races to readyState 4 and plays, which is exactly
+   * why this looked fine on a laptop and dead on a phone in both iOS browsers.
+   *
+   * So the element is always playing while the hero is on screen, and the
+   * poster simply stays on top of it until it is worth looking at. Nothing is
+   * revealed any sooner than before — the same canPlaySmoothly() gate and the
+   * same presented-frame check still stand between the video and the viewer.
    */
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !allowLoad) {
       // Covers save-data arriving mid-playback: the element is about to lose
       // its source, so the poster has to come back before it does.
-      setVideoReady(false);
       setShowVideo(false);
       return;
     }
 
-    // React does not reliably reflect `muted` as a property, and iOS refuses to
-    // autoplay an element that is not muted at the moment play() is called.
+    // Set as a property *and* an attribute. React does not reliably reflect
+    // `muted`, and WebKit reads it at the moment play() is called to decide
+    // whether autoplay is permitted at all.
     video.muted = true;
+    video.setAttribute("muted", "");
 
     let frameHandle: number | undefined;
+    let revealed = false;
 
-    const evaluate = () => setVideoReady(canPlaySmoothly(video));
-
-    const onPlaying = () => {
-      if (!canPlaySmoothly(video)) return;
+    const maybeReveal = () => {
+      if (revealed || frameHandle !== undefined) return;
+      if (video.paused || !canPlaySmoothly(video)) return;
       // Reveal on a presented frame, not on the event: `playing` fires when the
       // clock starts, which can be a frame or two before anything is painted,
       // and that gap is exactly where a black flash comes from. Safari 15.4+
@@ -273,38 +297,64 @@ export default function Banner({
       if (typeof video.requestVideoFrameCallback === "function") {
         frameHandle = video.requestVideoFrameCallback(() => {
           frameHandle = undefined;
+          revealed = true;
           setShowVideo(true);
         });
       } else {
+        revealed = true;
         setShowVideo(true);
       }
     };
 
+    /**
+     * A stall hides the video, and deliberately does not pause it. Pausing
+     * would be the tidier-looking response, but on iOS a paused element with an
+     * empty buffer is one that has stopped refilling, so the recovery this is
+     * supposed to enable could never arrive. Muted and behind an opaque poster,
+     * letting it keep running costs the viewer nothing.
+     */
     const onStall = () => {
-      setVideoReady(false);
+      revealed = false;
+      if (frameHandle !== undefined) {
+        video.cancelVideoFrameCallback?.(frameHandle);
+        frameHandle = undefined;
+      }
       setShowVideo(false);
     };
 
+    /**
+     * WebKit can reject the first play() when it is issued before metadata has
+     * landed, so every point at which the element gains data is also a chance
+     * to try again. Once it is running these are no-ops.
+     */
+    const onProgressed = () => {
+      if (inViewRef.current && video.paused) {
+        const played = video.play();
+        if (played) played.catch(() => {});
+      }
+      maybeReveal();
+    };
+
     const readyEvents = [
+      "loadedmetadata",
       "loadeddata",
       "canplay",
       "canplaythrough",
       "progress",
       "timeupdate",
+      "playing",
     ] as const;
     // `suspend` is deliberately absent — it fires when the browser has decided
     // it has enough and stopped fetching, which is the opposite of a stall.
     const stallEvents = ["waiting", "stalled", "error", "emptied"] as const;
 
-    readyEvents.forEach((e) => video.addEventListener(e, evaluate));
+    readyEvents.forEach((e) => video.addEventListener(e, onProgressed));
     stallEvents.forEach((e) => video.addEventListener(e, onStall));
-    video.addEventListener("playing", onPlaying);
-    evaluate();
+    onProgressed();
 
     return () => {
-      readyEvents.forEach((e) => video.removeEventListener(e, evaluate));
+      readyEvents.forEach((e) => video.removeEventListener(e, onProgressed));
       stallEvents.forEach((e) => video.removeEventListener(e, onStall));
-      video.removeEventListener("playing", onPlaying);
       if (frameHandle !== undefined) {
         video.cancelVideoFrameCallback?.(frameHandle);
       }
@@ -312,24 +362,28 @@ export default function Banner({
   }, [allowLoad]);
 
   /**
-   * Playback follows the two gates and nothing else. Leaving the viewport
-   * pauses but deliberately does not restore the poster: the video is off
-   * screen, and keeping the reveal means coming back resumes in place instead
-   * of crossfading again at someone who never saw it go.
+   * Playback follows visibility alone — see above for why readiness is not part
+   * of this decision. Leaving the viewport pauses but deliberately does not
+   * restore the poster: the video is off screen, and keeping the reveal means
+   * coming back resumes in place instead of crossfading again at someone who
+   * never saw it go.
    */
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !allowLoad) return;
 
-    if (inView && videoReady) {
+    if (inView) {
+      video.muted = true;
       const played = video.play();
-      // A rejected play() is normal — an autoplay policy declining it, or the
-      // pause below interrupting it — and not something the page can act on.
+      // A rejected play() is normal and not something the page can act on: an
+      // autoplay policy declining, iOS Low Power Mode refusing video outright,
+      // or the pause below interrupting it. The poster stays put in every case,
+      // because the reveal needs a playing element and never gets one.
       if (played) played.catch(() => {});
     } else {
       video.pause();
     }
-  }, [inView, videoReady]);
+  }, [inView, allowLoad]);
 
   return (
     <section
