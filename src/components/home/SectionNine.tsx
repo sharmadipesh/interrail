@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { RiArrowRightLine } from "react-icons/ri";
-import { useTouchPulse } from "@/components/generic/useTouchPulse";
+import ArrowCta from "@/components/generic/ArrowCta";
 import {
   cubicBezier,
   motion,
@@ -300,9 +299,7 @@ export default function SectionNine() {
   const sectionRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
   const reduce = !!useReducedMotion();
-  const ctaPulse = useTouchPulse(ctaRef, reduce);
 
   // Gates the first card so it waits for the section rather than firing while
   // SectionEight is still the thing being looked at.
@@ -460,34 +457,14 @@ export default function SectionNine() {
           })}
         </motion.div>
 
-        <motion.button
-          ref={ctaRef}
-          type="button"
+        {/* The only host that makes the button its own entrance target, and the
+            only one a size apart: 1.5 of gap against the others' 1, and the
+            design's 1.4 leading rather than 160%. */}
+        <ArrowCta
+          label="View Their Trips"
           variants={ctaIn}
-          // Present only on hover-less devices, and only while on screen.
-          // Elsewhere it is absent and the selectors below never match, so a
-          // pointer keeps the plain hover behaviour.
-          whileTap={{ scale: 0.98 }}
-          data-pulse={ctaPulse ? "on" : undefined}
-          whileHover={reduce ? undefined : { y: -1 }}
-          transition={{ duration: 0.3, ease: EASE }}
-          className="group relative flex items-center gap-1.5 font-sans text-base font-semibold leading-[1.4] text-navy-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
-        >
-          View Their Trips
-          {/* Hover motion is CSS and gated to devices that actually hover, so it
-              cannot stick on a touch screen after a tap. */}
-          {/* No colour class: react-icons draws with `fill="currentColor"`, so
-              the arrow inherits the button's own text-navy-1 and cannot drift
-              from the label it sits beside. */}
-          <RiArrowRightLine
-            aria-hidden
-            className="h-6 transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
-          />
-          <span
-            aria-hidden
-            className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 group-data-[pulse=on]:scale-x-100"
-          />
-        </motion.button>
+          className="gap-1.5 font-sans text-base font-semibold leading-[1.4] text-navy-1"
+        />
       </div>
     </motion.section>
   );

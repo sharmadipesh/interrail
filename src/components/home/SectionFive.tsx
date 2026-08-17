@@ -11,8 +11,7 @@ import {
   type MotionValue,
   type Variants,
 } from "framer-motion";
-import { RiArrowRightLine } from "react-icons/ri";
-import { useTouchPulse } from "@/components/generic/useTouchPulse";
+import ArrowCta from "@/components/generic/ArrowCta";
 
 // Premium ease-out — smooth, no bounce. Matches the rest of the page.
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -196,21 +195,31 @@ function Dot({
       aria-current={isCurrent}
       aria-label={`Go to route ${i + 1}`}
       // before: pushes the hit area out to 28px without touching layout, so the
-      // 8px dot keeps its spacing but stays tappable.
+      // 6.5px mark keeps its spacing but stays tappable. Note the button pitch
+      // here is 22px (12 + the container's gap-2.5), so these targets overlap
+      // their neighbours by 6px and the later sibling wins the shared strip —
+      // -inset-1 would tile them at 20px with 2px to spare.
       className="relative grid h-3 w-3 place-items-center rounded-full before:absolute before:-inset-2 before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-2"
     >
       {/* Idle dot — fades out as the ring takes its place, so the ring's centre
           can stay transparent instead of being painted over with the section's
-          background colour. */}
+          background colour.
+
+          6.5px, which is the size the design measures its pagination spacing to
+          and what the page's other three strips already draw. This was an 8px
+          mark, and next to them it read as a different control rather than the
+          same one. */}
       <motion.span
         style={{ opacity: dotOpacity }}
-        className="block h-2 w-2 rounded-full bg-[#E5E5E5]"
+        className="block h-[6.5px] w-[6.5px] rounded-full bg-[#E5E5E5]"
       />
-      {/* Active — a hollow ring, per the design. 2.5px of the 8px leaves a 3px
-          centre, matching the design's ~38% hole. */}
+      {/* Active — a hollow ring, per the design. The border thins with the mark
+          rather than staying put: 2px of 6.5 leaves a 2.5px centre, 38.5%, where
+          the old 2.5px of 8 left 3px, 37.5%. The hole keeps its proportion, so
+          this is the same ring drawn smaller and not a lighter one. */}
       <motion.span
         style={{ opacity: ringOpacity, scale: ringScale, y: ringY }}
-        className="absolute h-2 w-2 rounded-full border-[2.5px] border-brand-yellow"
+        className="absolute h-[6.5px] w-[6.5px] rounded-full border-2 border-brand-yellow"
       />
     </motion.button>
   );
@@ -340,9 +349,7 @@ function Card({
 export default function SectionFive() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
   const reduce = useReducedMotion();
-  const ctaPulse = useTouchPulse(ctaRef, !!reduce);
 
   const x = useMotionValue(0);
   const [index, setIndex] = useState(0);
@@ -492,33 +499,7 @@ export default function SectionFive() {
 
         {/* Explore all Trips — lands last in the sequence */}
         <motion.div variants={ctaIn} className="flex justify-center mt-6">
-          <motion.button
-            ref={ctaRef}
-            type="button"
-            // Present only on hover-less devices, and only while the button is
-            // on screen. Everywhere else it is absent and the selectors below
-            // never match, so a pointer keeps the plain hover behaviour.
-            data-pulse={ctaPulse ? "on" : undefined}
-            whileHover={reduce ? undefined : { y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="group relative flex items-center gap-1 text-navy font-sans text-base font-semibold leading-[160%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-yellow focus-visible:ring-offset-4"
-          >
-            <span>Explore all Trips</span>{" "}
-            {/* Hover motion is CSS and gated to devices that actually hover, so
-                it cannot stick on a touch screen after a tap. The data-pulse
-                selector is the same move on the same transition, for the touch
-                screens the hover query deliberately excludes. */}
-            <RiArrowRightLine
-              aria-hidden
-              className="h-6 text-navy transition-transform duration-300 ease-out [@media(hover:hover)]:group-hover:translate-x-[5px] group-data-[pulse=on]:translate-x-[5px] motion-reduce:transition-none motion-reduce:[@media(hover:hover)]:group-hover:translate-x-0"
-            />
-            {/* Same underline idiom SectionSix uses, for continuity. */}
-            <span
-              aria-hidden
-              className="absolute -bottom-0.5 left-0 h-[2px] w-full origin-left scale-x-0 bg-brand-yellow transition-transform duration-500 ease-out [@media(hover:hover)]:group-hover:scale-x-100 group-data-[pulse=on]:scale-x-100"
-            />
-          </motion.button>
+          <ArrowCta label="Explore all Trips" />
         </motion.div>
       </motion.div>
     </section>

@@ -90,12 +90,62 @@ const YELLOW: Range = [0.13, 0.95];
  * 234.7 units along — sit earlier in the draw. Re-measure against `D` if a
  * route is ever re-exported; a stale fraction here shows as a station blooming
  * off the signal.
+ *
+ * Both pairs are listed in route order, so the lower one now reads right-hand
+ * stop first: its path is drawn back to front (see LowerRoute) and a fraction is
+ * measured from whichever end the draw starts at. Reversing a polyline leaves
+ * its length alone — still 503.7 units — and only flips which end a point is
+ * measured from, so these are exactly the old fractions taken from 1:
+ * 0.686 → 0.314 and 0.369 → 0.631.
  */
 const UPPER_STOPS = [0.148, 0.482] as const;
-const LOWER_STOPS = [0.369, 0.686] as const;
+const LOWER_STOPS = [0.314, 0.631] as const;
 
 /** How long a station takes to bloom once the signal arrives. */
 const DWELL = 0.09;
+
+/**
+ * The pulse a station keeps up once it has arrived: its white centre fills with
+ * brand yellow and drains back out.
+ *
+ * One property, and fill rather than opacity. The dot's white centre is what
+ * masks the route passing underneath it, so anything that fades the marker lets
+ * the line show through and reads as the route briefly healing over the stop.
+ * Fill never costs that — the disc stays fully opaque throughout and only
+ * changes colour, so the stop always sits *on* the line rather than dissolving
+ * into it.
+ *
+ * The lit colour is the route's own #FFD400 (brand.yellow), not a new accent, so
+ * the stop reads as the signal arriving in it. Only the centre moves: the ring
+ * keeps its #FEBC22 → #FFD400 gradient stroke, which is what stops the dot
+ * disappearing into the line at the top of the pulse — at full fill it is a
+ * yellow disc still outlined against yellow.
+ *
+ * ── Why there is a hold in the middle ───────────────────────────────────────
+ *
+ * As a plain three-keyframe sweep the fill only *passed through* #FFD400, for a
+ * single frame out of ninety-odd, and spent the rest of the cycle in the cream
+ * midtones between it and white. The dot never actually looked like the line —
+ * it looked like a washed-out version of it.
+ *
+ * Repeating the lit colour is what fixes that. Framer spaces keyframes evenly
+ * when it is not told otherwise, so [white, lit, lit, white] puts the fill at
+ * the line's exact yellow across the whole middle third of the cycle — 0.73s of
+ * actually being that colour, rather than an instant of crossing it.
+ *
+ * The hold is spelled as a repeated keyframe rather than with a `times` array
+ * simply because it needs no second mechanism: even spacing already puts the
+ * hold where a `times` of [0, 0.33, 0.67, 1] would.
+ *
+ * Either side of the hold is 0.73s of easeInOut, so the fill arrives at and
+ * leaves the line's colour at zero velocity and the loop has no corner in it
+ * anywhere. 2.2s total, up from 1.6s — the same travel over more time is the
+ * whole of what makes it gentler. Still far outside the 3Hz threshold that makes
+ * flashing an accessibility problem.
+ */
+const STATION_FILL = "#FFFFFF";
+const STATION_FILL_LIT = "#FFD400";
+const PULSE_SECONDS = 2.2;
 
 /** Maps a station's position along a path onto that path's draw window. */
 function stopWindow([from, to]: Range, at: number): Range {
@@ -201,6 +251,18 @@ function Reveal({
  * orients its userSpaceOnUse gradient, so a CSS transform here would quietly
  * restyle it. Scaling lives on the wrapping group instead, which Framer renders
  * with transform-box: fill-box and a 50% origin, i.e. the circle's own centre.
+ *
+ * Two groups, not one: the outer carries the scroll-driven bloom as MotionValues
+ * on `style`, the inner carries the time-driven fill pulse. Keeping the pulse off
+ * the `<circle>` is the point of the split — a motion component on the circle
+ * lets Framer write a CSS transform, and CSS transform beats the presentation
+ * attribute, so the rotate() above would be silently dropped and every station's
+ * gradient would swing round with it. The circle stays inert; the group animates.
+ *
+ * The circle inherits its fill rather than declaring one, which is what lets the
+ * group drive it. The group carries a static `fill` too, so the marker is white
+ * in the server-rendered HTML and under reduced motion instead of falling back
+ * to SVG's default black.
  */
 function Station({
   cx,
@@ -223,17 +285,60 @@ function Station({
   const opacity = useTransform(progress, [from, to], [0, 1], { ease: EASE });
   const scale = useTransform(progress, [from, to], [0.5, 1], { ease: EASE });
 
+  // A marker that never stops moving is the thing a reader who asked for less
+  // motion asked to be rid of, so under reduced motion the dot simply rests
+  // white. The bloom is already neutralised upstream — useViewportProgress pins
+  // progress at 1 — so dropping the loop here is all that is left to do.
+  const reduce = useReducedMotion();
+
   return (
     <motion.g style={{ opacity, scale }}>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        transform={`rotate(${rotate} ${cx} ${cy})`}
-        fill="white"
-        stroke={`url(#${gradient})`}
-        strokeWidth="2"
-      />
+      <motion.g
+        // `initial` is not decoration. Once `fill` appears in `animate` Framer
+        // owns the attribute and renders it from its own state, so a plain
+        // `fill=` prop here is swallowed rather than used as the base — it
+        // writes the string "undefined", which is not a colour, and the circle
+        // falls back to the `fill="none"` it inherits from the <svg>. The dot
+        // goes hollow and the route runs straight through it. Naming the start
+        // colour here is what gives Framer something to interpolate from, and
+        // it is what lands in the prerendered HTML.
+        initial={{ fill: STATION_FILL }}
+        // A plain `animate`, deliberately, and not `whileInView`. Gating the
+        // loop on visibility would be the tidier-sounding thing, but it puts an
+        // IntersectionObserver on an SVG <g> — an element with no CSS box — and
+        // that is exactly the sort of dependency that fails on one engine and
+        // leaves the stations mysteriously dead. Framer parks the loop itself
+        // when the page stops painting, off screen or in a background tab.
+        animate={
+          reduce
+            ? { fill: STATION_FILL }
+            : {
+                // Four keyframes, not three, and the repeat is the point: the
+                // middle pair is the hold at the line's colour. Evenly spaced —
+                // see the note on `times` above.
+                fill: [
+                  STATION_FILL,
+                  STATION_FILL_LIT,
+                  STATION_FILL_LIT,
+                  STATION_FILL,
+                ],
+              }
+        }
+        transition={{
+          duration: PULSE_SECONDS,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          transform={`rotate(${rotate} ${cx} ${cy})`}
+          stroke={`url(#${gradient})`}
+          strokeWidth="2"
+        />
+      </motion.g>
     </motion.g>
   );
 }
@@ -376,8 +481,14 @@ function UpperRoute({ progress }: { progress: MotionValue<number> }) {
 }
 
 /**
- * Lower route — rises from the bottom-left and exits right. Here grey and
- * yellow share identical path data, so the lead comes purely from the timeline.
+ * Lower route — enters at the top right and runs back down to the bottom-left.
+ * Here grey and yellow share identical path data, so the lead comes purely from
+ * the timeline.
+ *
+ * It draws against the reading direction on purpose, and the only thing that
+ * makes it do so is the order the vertices are listed in: `pathLength` always
+ * fills from a path's `M`, so putting `M` on what Figma exported as the final
+ * point is the whole mechanism. Nothing is mirrored, rotated or moved.
  */
 function LowerRoute({ progress }: { progress: MotionValue<number> }) {
   const uid = useId().replace(/:/g, "");
@@ -387,18 +498,24 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
   const grey = useDraw(progress, GREY);
   const yellow = useDraw(progress, YELLOW);
 
+  // The Figma export's twenty vertices, listed back to front: the same points,
+  // the same segments between them, and therefore the same line on screen —
+  // only walked from (392.828, 39.3483) to (-6.90919, 283.029) instead of the
+  // other way round. A polyline is direction-agnostic as geometry, so this is a
+  // reversal of the traversal, not of the shape.
   const D =
-    "M-6.90919 283.029L4.53728 271.849L24.4306 250.882L35.9117 241.674L41.9109 238.888L42.4278 233.877L71.8024 201.747L79.629 199.703L93.9718 189.862L111.074 199.414L136.451 206.615L160.586 203.359L186.582 185.521L235.954 138.34L267.777 125.152L307.668 97.7812L330.836 65.2539L341.732 65.7606L381.622 38.3894L392.828 39.3483";
+    "M392.828 39.3483L381.622 38.3894L341.732 65.7606L330.836 65.2539L307.668 97.7812L267.777 125.152L235.954 138.34L186.582 185.521L160.586 203.359L136.451 206.615L111.074 199.414L93.9718 189.862L79.629 199.703L71.8024 201.747L42.4278 233.877L41.9109 238.888L35.9117 241.674L24.4306 250.882L4.53728 271.849L-6.90919 283.029";
 
   return (
     // 283 tall rather than 253, and the element is allowed to hang the extra 30
     // below its box.
     //
-    // The path's own start is (-6.90919, 283.029) — off the left edge and below
+    // The path's far end is (-6.90919, 283.029) — off the left edge and below
     // the bottom one. A 253-unit frame cut that last stretch off, so the line
-    // had to enter through the bottom edge about 22 units in rather than
-    // reaching the left side. Taking the frame down to the path's real extent
-    // puts the descent back on screen.
+    // met the bottom edge about 22 units in rather than reaching the left side.
+    // Taking the frame down to the path's real extent puts the descent back on
+    // screen — and now that the draw ends there rather than starting there, it
+    // is the stretch the line finishes on.
     //
     // Deliberately *not* a pan of the existing window: the route sits ~8 units
     // under the copy above it by design, so shifting it up to make room drives
@@ -433,21 +550,23 @@ function LowerRoute({ progress }: { progress: MotionValue<number> }) {
         style={yellow}
       />
 
-      <Station
-        cx={136.47}
-        cy={205.164}
-        r={4.52491}
-        rotate={-46.2817}
-        gradient={a}
-        progress={progress}
-        range={stopWindow(YELLOW, LOWER_STOPS[0])}
-      />
+      {/* In route order — drawing right-to-left, the signal now reaches
+          268,125 first and 136,205 second. */}
       <Station
         cx={268.319}
         cy={124.841}
         r={4.52491}
         rotate={-46.2817}
         gradient={b}
+        progress={progress}
+        range={stopWindow(YELLOW, LOWER_STOPS[0])}
+      />
+      <Station
+        cx={136.47}
+        cy={205.164}
+        r={4.52491}
+        rotate={-46.2817}
+        gradient={a}
         progress={progress}
         range={stopWindow(YELLOW, LOWER_STOPS[1])}
       />
@@ -538,10 +657,11 @@ export default function SectionTwo() {
         })}
       </div>
 
-      {/* Lower line — rises from the bottom-left to just under the last copy
-          block and exits right. Kept in flow so it reserves the 210px the Figma
-          leaves below the copy for it to sweep through, and so its bottom edge
-          stays pinned to the section's, which is how the asset is cropped.
+      {/* Lower line — sweeps in from the right, just under the last copy block,
+          and runs down to the bottom-left. Kept in flow so it reserves the
+          210px the Figma leaves below the copy for it to sweep through, and so
+          its bottom edge stays pinned to the section's, which is how the asset
+          is cropped.
           -43px is the overlap its frame has with that block in the design. */}
       <div
         ref={lowerRef}
