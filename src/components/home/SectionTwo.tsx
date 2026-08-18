@@ -598,7 +598,8 @@ export default function SectionTwo() {
     // descent off the bottom-left stays on screen. Without this the overflow
     // would land on the next section, whose own white background paints after
     // this one and would cover it.
-    <div className="relative z-0 bg-white px-6 pb-[30px]">
+    // pb-[30px]
+    <div className="relative z-0 bg-white px-6">
       {/* pt-[120px] */}
       <Reveal className="pt-20 text-navy-1 text-center font-sans text-5xl font-semibold tracking-1px leading-[105%]">
         One continent.
@@ -663,12 +664,24 @@ export default function SectionTwo() {
           its bottom edge stays pinned to the section's, which is how the asset
           is cropped.
           -43px is the overlap its frame has with that block in the design. */}
+      {/* overflow-x-clip contains the rotation below. Turning a 375x253 box 12
+          degrees swings its corners about 28px past each side of the viewport,
+          which is page-level horizontal overflow — the whole document gains a
+          sideways scroll. This box is already exactly viewport-wide (-mx-6
+          cancels the section's px-6), so clipping to it cuts only what was off
+          screen anyway.
+
+          `clip`, not `hidden`, and only on the x axis: `hidden` would force the
+          other axis to `auto` and start clipping vertically too, and the route
+          is *meant* to hang past this box — the SVG is 283px tall in a 253px
+          frame so its descent off the bottom-left stays on screen. `clip` pairs
+          with `visible`, so the vertical bleed survives untouched. */}
       <div
         ref={lowerRef}
         aria-hidden
-        className="pointer-events-none relative -z-10 -mx-6 -mt-[43px] h-[253px]"
+        className="pointer-events-none relative -z-10 -mx-6 -mt-[43px] h-[253px] overflow-x-clip"
       >
-        <div className="relative mx-auto h-full w-full max-w-md">
+        <div className="relative mx-auto h-full w-full max-w-md rotate-12">
           <LowerRoute progress={lowerProgress} />
         </div>
       </div>
